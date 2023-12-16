@@ -14,7 +14,7 @@ def train():
     config["weight_decay"] = 0
 
     data_set = load_data.Dataloader_graph(config)
-    train1_set, validation_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.8), int(data_set.__len__()*0.2)], generator=None)
+    train1_set, validation_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.8), int(data_set.__len__()*0.2)], generator=torch.Generator().manual_seed(42))
     train_dataloader = DataLoader(train1_set, batch_size=config["batch_size"], shuffle=True)
     validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
 
