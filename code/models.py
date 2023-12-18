@@ -5,6 +5,49 @@ import copy
 import pytorch_lightning as pl
 
 
+class model_wraper_AE(pl.LightningModule):
+
+    def __init__(self, config):
+        super().__init__()
+        module = __import__("models")
+        self.model = getattr(module, config["MODEL_NAME"])(config)
+        self.criterion_mse = nn.MSELoss()
+        self.config = config
+        self.val_pred = []
+        self.val_loss = []
+
+    def forward(self, batch):
+        return self.model(batch)
+
+    def training_step(self, batch, batch_idx):
+        pred = self.forward(batch[0])
+        target = batch[1]
+        loss = self.criterion_mse(pred, target)
+        self.log('train_loss', loss.item())
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        pred = self.forward(batch[0])
+        target = batch[1]
+        loss = self.criterion_mse(pred, target)
+        self.val_pred.append([target, pred])
+        self.val_loss.append(loss)
+        self.log('val_loss', loss.item())
+        return loss
+
+    # def on_validation_epoch_end(self):
+    #     pass
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.config['learning_rate'], weight_decay=self.config['weight_decay'])
+        return optimizer
+    
+    def load_model_state(self, PATH):
+        checkpoint = torch.load(PATH, map_location='cuda:0')
+        self.model.load_state_dict(checkpoint['state_dict'])
+
+
+
 class model_wraper(pl.LightningModule):
 
     def __init__(self, config):
@@ -24,6 +67,7 @@ class model_wraper(pl.LightningModule):
         pred = self.forward(batch)
         target = batch["target"][0]
         loss = self.criterion_mse(pred, target)
+        self.log('train_loss', loss.item())
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -33,6 +77,7 @@ class model_wraper(pl.LightningModule):
         loss = self.criterion_mse(pred, target)
         self.val_pred.append([target, pred])
         self.val_loss.append(loss)
+        self.log('val_loss', loss.item())
         return loss
 
     # def on_validation_epoch_end(self):
@@ -231,17 +276,6 @@ class GreenGNN(torch.nn.Module):
         edge_index = data["edge_index"][0]
         x = data["node_feature"][0]
         x1 = data["vectors"][0]
-#         print(" **********************2 ***************************  ")
-#         print(" *************************************************  ")
-#         print(" *************************************************  ")
-#         print(" *************************************************  ")
-#         print(" *************************************************  ")
-#         print(" *************************************************  ")
-        
-#         print(data["ei"])
-#         edge_index = data[1][0]
-#         x = data[0][0]
-#         x1 = data[3][0]
         
         # Not sure whether deepcopy is really needed...idea is to preserve basis vectors.
         v_shape = int(x.shape[1]/3)
@@ -250,18 +284,14 @@ class GreenGNN(torch.nn.Module):
 
         for i in range(self.hidden_layer):
             x2 = self.green_gnn[i](x2, edge_index, v=x1)
-#             x2 = self.green_gnn[i](x2, edge_index, batch, v=x1)
 
         x2 = self.head_pre_pool(x2)
         batch = torch.zeros(x2.size(0), dtype=torch.long, device=x2.device)
         x2 = global_mean_pool(x2, batch)
         coefficients = self.head_post_pool(x2)
         x3 = torch.zeros(self.out_dim, device=x2.device, dtype=torch.float64)
-#         print(batch.dtype, x3.dtype, x1.dtype, coefficients.dtype)
 
-#         print(out.shape, x1.shape)
         for n in range(0, coefficients.shape[0]):
-#             print(x3.dtype, x1.dtype, coefficients.dtype)
             x3 += x1[n,:] * coefficients[n,:]
             
         return x3

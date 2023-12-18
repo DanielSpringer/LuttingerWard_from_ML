@@ -19,7 +19,7 @@ def train():
     validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
 
     model = models.model_wraper(config)
-    # SAVEPATH = "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/save_GreenGNN_2023-12-17/version_2/checkpoints/epoch=16-step=340000.ckpt"
+    # SAVEPATH = "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/save_GreenGNN_2023-12-16/version_2/checkpoints/"
     # checkpoint = torch.load(PATH)#, map_location=torch.device('cpu'))
     # model.load_state_dict(checkpoint['state_dict'])
     # print("...apparently loaded model.")
@@ -32,7 +32,9 @@ def train():
     from pytorch_lightning.plugins.environments import LightningEnvironment
 
     # ### SLURM Training
-    trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=2, num_nodes=4, strategy='ddp', logger=logger)
+    # trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=2, num_nodes=8, strategy='ddp', logger=logger)
+    trainer = pl.Trainer(max_epochs=20, devices=128, num_nodes=1, strategy='ddp', logger=logger)
+
     # ### Jupyter Notebook Training
     # # trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
 
