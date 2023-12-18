@@ -5,7 +5,7 @@ import copy
 import pytorch_lightning as pl
 
 
-class model_wraper_AE(pl.LightningModule):
+class model_wraper_ae(pl.LightningModule):
 
     def __init__(self, config):
         super().__init__()
@@ -48,7 +48,7 @@ class model_wraper_AE(pl.LightningModule):
 
 
 
-class model_wraper(pl.LightningModule):
+class model_wraper_gnn(pl.LightningModule):
 
     def __init__(self, config):
         super().__init__()

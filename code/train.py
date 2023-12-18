@@ -18,7 +18,7 @@ def train():
     train_dataloader = DataLoader(train1_set, batch_size=config["batch_size"], shuffle=True)
     validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
 
-    model = models.model_wraper(config)
+    model = models.model_wraper_gnn(config)
     # SAVEPATH = "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/save_GreenGNN_2023-12-17/version_2/checkpoints/epoch=16-step=340000.ckpt"
     # checkpoint = torch.load(PATH)#, map_location=torch.device('cpu'))
     # model.load_state_dict(checkpoint['state_dict'])
