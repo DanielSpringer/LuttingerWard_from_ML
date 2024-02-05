@@ -1,50 +1,35 @@
 from torch.utils.data import Dataset
-from torch_geometric.data.data import Data
 import torch
 import numpy as np
 import h5py
 from scipy.special import eval_legendre
 
 class Dataset_baseline(Dataset):
-
+    """Dataset with minimal number of features.
+    includes only impurity Green's function, electron density and self-energy (labels) without basis sets.
+    """
     def __init__(self, config):
         PATH = config["PATH_TRAIN"]
         f = h5py.File(PATH, 'r')
-        data_in = np.array(f["Set1"]["GImp"])
-        data_target = np.array(f["Set1"]["SImp"])
-        self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
-        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
+        x = np.array(f["Set1"]["GImp"])
+        ndens_in = np.array(f["Set1"]["dens"])
+        y = np.array(f["Set1"]["SImp"])
+        x = np.concatenate((x.real, x.imag), axis=1)
+        y = np.concatenate((y.real, y.imag), axis=1)
+        x = np.c_[ndens_in, x]
+        p = np.random.RandomState(seed=0).permutation(x.shape[0])
+        x = x[p,:]
+        y = y[p,:]
+        self.data_in = torch.tensor(x, dtype=torch.float32)
+        self.data_target = torch.tensor(y, dtype=torch.float32)
 
     def __len__(self):
         return self.data_in.shape[0]
 
     def __getitem__(self, idx):
-      if torch.is_tensor(idx):
-          idx = idx.tolist()
-      return self.data_in[idx], self.data_target[idx]
-
-
-
-class Dataset_baseline_conv(Dataset):
-
-    def __init__(self, config):
-        PATH = config["PATH_TRAIN"]
-        f = h5py.File(PATH, 'r')
-        data_in = np.array(f["Set1"]["GImp"])
-        data_target = np.array(f["Set1"]["SImp"])
-        self.data_in = torch.stack([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)],dim=1)
-        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
-#         self.data_target = torch.stack([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)],dim=1)
-#         print(self.data_in.shape)
-
-    def __len__(self):
-        return self.data_in.shape[0]
-
-    def __getitem__(self, idx):
-      if torch.is_tensor(idx):
-          idx = idx.tolist()
-      return self.data_in[idx], self.data_target[idx]
-
+        #if torch.is_tensor(idx):
+        #    idx = idx.tolist()
+        return self.data_in[idx], self.data_target[idx]
 
 
 class Dataloader_graph(Dataset):
