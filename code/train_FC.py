@@ -10,23 +10,21 @@ torch.set_float32_matmul_precision("high")
 if __name__ == "__main__":
 
     hparams = {
-            "model_name": "FullCNN_WeightesLoss_Large",
+            "model_name": "FullCNN",
             "fc_dims": [201, 200, 200, 200, 200, 200, 200, 200],
-            #"fc_dims": [201, 150, 100, 50, 30, 50, 100, 200, 400, 400, 20, 150, 100, 50, 30, 50, 100, 15, 200],
-            #"fc_dims": [201, 200, 150, 100, 50, 150, 200, 200],
             "dropout_in": 0.0,
-            "dropout": 0.0,
-            "with_batchnorm": False,
+            "dropout": 0.4,
+            "with_batchnorm": True,
             "lr": 0.01,
             "batch_size": 64,
-            "train_path": "D:/data_test2.hdf5",
+            "train_path": "../data/batch1.hdf5",
             "optimizer": "Adam",
             "SGD_weight_decay": 0.0,
             "SGD_momentum": 0.9,
             "SGD_dampening": 0.0,
             "SGD_nesterov": False,
                }
-    model = SimpleFC_Lit(hparams) #FC_Split(hparams)
+    model = SimpleFC(hparams)
     lr_monitor = LearningRateMonitor(logging_interval='step')
     early_stopping = EarlyStopping(
             monitor="val_loss",
@@ -44,8 +42,5 @@ if __name__ == "__main__":
                                     )
     callbacks = [val_ckeckpoint, lr_monitor, early_stopping, swa, RichModelSummary()] #, DeviceStatsMonitor()
     profiler = PyTorchProfiler()
-    trainer = L.Trainer(enable_checkpointing=True, max_epochs=600, accelerator="gpu", callbacks=callbacks, logger=logger) #precision="16-mixed", 
-    #trainer = L.Trainer(enable_checkpointing=False, max_epochs=2, accelerator="cpu") #precision="16-mixed", 
+    trainer = L.Trainer(enable_checkpointing=True, max_epochs=600, accelerator="gpu", callbacks=callbacks, logger=logger)
     trainer.fit(model)
-
-    #torch.save(model, logger.log_dir)

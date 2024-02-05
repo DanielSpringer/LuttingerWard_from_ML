@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 if __name__ == "__main__":
 
     config = {}
-    config["PATH_TRAIN"] = "D:/data_test1.hdf5"
+    config["PATH_TRAIN"] = "../data/batch1.hdf5"
     data_set = ld.Dataset_baseline(config)
     config["MODEL_NAME"] = "auto_encoder"
 
