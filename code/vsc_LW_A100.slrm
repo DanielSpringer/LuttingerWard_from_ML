@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+#SBATCH -J LW13h
+#SBATCH --mail-type=BEGIN    # first have to state the type of event to occur 
+#SBATCH --mail-user=<email@address.at>   # and then your email address
+
+#SBATCH --partition=zen3_0512_a100x2
+#SBATCH --qos zen3_0512_a100x2
+#SBATCH --ntasks-per-node=2
+#SBATCH --nodes=1
+#SBATCH --time=13:00:00
+
+nvidia-smi
+
+FILES=(/home/fs72150/springerd/XInstalls/anaconda3/*)
+source /home/fs72150/springerd/XInstalls/anaconda3/bin/activate
+conda init bash
+#source ~/.bashrc
+conda activate conda_ml
+
+# mpirun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_Prediction/code/train.py
+srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/train.py
