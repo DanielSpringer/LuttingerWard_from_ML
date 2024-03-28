@@ -2,11 +2,10 @@ import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 import copy
-import pytorch_lightning as pl
+import lightning as L
 
 
-class model_wraper_ae(pl.LightningModule):
-
+class model_wraper_AE(L.LightningModule):
     def __init__(self, config):
         super().__init__()
         module = __import__("models")
@@ -16,31 +15,28 @@ class model_wraper_ae(pl.LightningModule):
         self.val_pred = []
         self.val_loss = []
 
-    def forward(self, batch):
+    def forward(self, batch: torch.Tensor):
         return self.model(batch)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self,batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         pred = self.forward(batch[0])
-        target = batch[1]
-        loss = self.criterion_mse(pred, target)
+        loss = self.criterion_mse(pred, batch[1])
         self.log('train_loss', loss.item())
         return loss
 
-    def validation_step(self, batch, batch_idx):
-        pred = self.forward(batch[0])
-        target = batch[1]
-        loss = self.criterion_mse(pred, target)
-        self.val_pred.append([target, pred])
+    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        x, y = batch
+        pred = self.forward(x)
+        loss = self.criterion_mse(pred, y)
+        self.val_pred.append([y, pred])
         self.val_loss.append(loss)
-        self.log('val_loss', loss.item())
+        self.log('val_loss', loss.item(), prog_bar=True)
         return loss
 
-    # def on_validation_epoch_end(self):
-    #     pass
-
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> dict:
         optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.config['learning_rate'], weight_decay=self.config['weight_decay'])
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=1e-5)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
     
     def load_model_state(self, PATH):
         checkpoint = torch.load(PATH, map_location='cuda:0')
@@ -48,7 +44,7 @@ class model_wraper_ae(pl.LightningModule):
 
 
 
-class model_wraper_gnn(pl.LightningModule):
+class model_wraper_gnn(L.LightningModule):
 
     def __init__(self, config):
         super().__init__()
@@ -91,32 +87,74 @@ class model_wraper_gnn(pl.LightningModule):
         checkpoint = torch.load(PATH, map_location='cuda:0')
         self.model.load_state_dict(checkpoint['state_dict'])
 
+class Encoder(torch.nn.Module):
+    """
+    Encodes Input data, for now with hardcoded dimensions and layers.
+    """
+    def __init__(self, config):
+        super().__init__()
+        self.encode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["encoder_dim"])
+        )
+
+    def forward(self, x):
+        return self.encode(x)
+
+class Decoder(torch.nn.Module):
+    """
+    Decodes Output data, for now with hardcoded dimensions and layers.
+    """
+    def __init__(self, config):
+        super().__init__()
+        self.decode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["out_dim"])
+        )
+    
+    def forward(self, x):
+        return self.decode(x)
 
 class auto_encoder(torch.nn.Module):
     def __init__(self, config):
         super(auto_encoder, self).__init__()
         self.config = config
+        self.activation = nn.SiLU()# nn.LeakyReLU()
 
         self.embedding = nn.Sequential(
             nn.Linear(config["in_dim"], config["embedding_dim"])
         )
 
-        self.encoding = nn.Sequential(
+        self.encode = nn.Sequential(
+            self.activation,
             nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
+            self.activation,
             nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
+            self.activation,
             nn.Linear(config["hidden2_dim"], config["encoder_dim"])
         )
 
-        self.decoding = nn.Sequential(
+        self.decode = nn.Sequential(
+            self.activation,
             nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
+            self.activation,
             nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
-            nn.Linear(config["hidden1_dim"], config["in_dim"])
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["out_dim"])
         )
 
     def forward(self, data_in):
         x = self.embedding(data_in)
-        x = self.encoding(x)
-        x = self.decoding(x)
+        x = self.encode(x)
+        x = self.decode(x)
         return x
     
     

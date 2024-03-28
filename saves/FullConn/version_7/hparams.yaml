@@ -1,0 +1,19 @@
+SGD_dampening: 0.0
+SGD_momentum: 0.9
+SGD_nesterov: false
+SGD_weight_decay: 0.0
+batch_size: 128
+dropout: 0.0
+dropout_in: 0.2
+fc_dims:
+- 201
+- 200
+- 200
+- 200
+- 200
+- 200
+lr: 0.05
+model_name: FullCNN
+optimizer: Adam
+train_path: D:/data_test1.hdf5
+with_batchnorm: false
