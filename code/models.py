@@ -20,7 +20,8 @@ class model_wraper_AE(L.LightningModule):
 
     def training_step(self,batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         pred = self.forward(batch[0])
-        loss = self.criterion_mse(pred, batch[1])
+        target = batch[1]
+        loss = self.criterion_mse(pred, target) # free energy
         self.log('train_loss', loss.item())
         return loss
 
@@ -62,7 +63,9 @@ class model_wraper_gnn(L.LightningModule):
 #         pred = self.forward(batch[0])
         pred = self.forward(batch)
         target = batch["target"][0]
-        loss = self.criterion_mse(pred, target)
+        # loss = self.criterion_mse(pred, target)
+        loss = self.criterion_mse(pred, target) + 2 * self.criterion_mse(pred[0:10], target[0:10])
+        # loss = self.criterion_mse(pred, target) + 30 * self.criterion_mse(pred[0:5], target[0:5])   # VERSION 2
         self.log('train_loss', loss.item())
         return loss
 
@@ -70,7 +73,9 @@ class model_wraper_gnn(L.LightningModule):
 #         pred = self.forward(batch[0])
         pred = self.forward(batch)
         target = batch["target"][0]
-        loss = self.criterion_mse(pred, target)
+        # loss = self.criterion_mse(pred, target)
+        loss = self.criterion_mse(pred, target) + 2 * self.criterion_mse(pred[0:10], target[0:10])
+        # loss = self.criterion_mse(pred, target) + 30 * self.criterion_mse(pred[0:5], target[0:5])   # VERSION 2
         self.val_pred.append([target, pred])
         self.val_loss.append(loss)
         self.log('val_loss', loss.item())
@@ -258,6 +263,7 @@ class GNN_Layer(MessagePassing):
 class GreenGNN(torch.nn.Module):
     def __init__(self, config):
         super(GreenGNN, self).__init__()
+        self.config = config
 
         omega_steps = 100
         tau_steps = 100
@@ -269,7 +275,8 @@ class GreenGNN(torch.nn.Module):
         pre_pool_hidden_dim = 100
         pre_pool_out_dim = 100
         post_pool_hidden_dim = 100
-        nr_coefficients = 100
+        nr_coefficients = config["n_nodes"]
+        # nr_coefficients = 100 #config["n_nodes"]
         hidden_layer = 2
 
         self.out_dim = 100
@@ -327,11 +334,18 @@ class GreenGNN(torch.nn.Module):
         batch = torch.zeros(x2.size(0), dtype=torch.long, device=x2.device)
         x2 = global_mean_pool(x2, batch)
         coefficients = self.head_post_pool(x2)
-        x3 = torch.zeros(self.out_dim, device=x2.device, dtype=torch.float64)
 
-        for n in range(0, coefficients.shape[0]):
-            x3 += x1[n,:] * coefficients[n,:]
-            
+        if self.config["weird"] == True:
+            x3 = torch.zeros(self.out_dim, device=x2.device, dtype=torch.float64)
+            for n in range(0, coefficients.shape[0]):
+                x3 += x1[n,:] * coefficients[n,:]
+
+        if self.config["weird"] == False:
+            x3 = torch.zeros(self.out_dim, device=x2.device, dtype=torch.float64)
+            for n in range(0, coefficients.shape[1]):
+                x3 += x1[n,:] * coefficients[0,n]
+        
+        
         return x3
     
     
