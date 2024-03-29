@@ -40,8 +40,9 @@ class Dataloader_graph(Dataset):
         self.data_in = np.array(f["Set1"]["GImp"])
         self.data_target = np.array(f["Set1"]["SImp"])
         
+        self.n_nodes = config["n_nodes"]
         n_freq = self.data_in.shape[1]
-        leg_pol = np.linspace(0, n_freq-1, n_freq)
+        leg_pol = np.linspace(0, n_freq-1, self.n_nodes)
         beta = 30 ### Later this needs to be dynamics
         iv = np.linspace(0, (2*n_freq+1)*np.pi/beta, n_freq)
         iv2 = np.linspace(0, 1, n_freq)
@@ -51,10 +52,10 @@ class Dataloader_graph(Dataset):
             self.vectors[int(p),:] = torch.tensor(eval_legendre(int(p), iv2), dtype=torch.torch.float64)
         self.n_vectors = self.vectors.shape[0]
         
-        edge_index = torch.zeros((2, self.n_vectors**2))
+        edge_index = torch.zeros((2, self.n_nodes**2))
         k = 0
-        for i in range(self.n_vectors):
-            for j in range(self.n_vectors):
+        for i in range(self.n_nodes):
+            for j in range(self.n_nodes):
                 edge_index[0, k] = i
                 edge_index[1, k] = j
                 k += 1
@@ -67,8 +68,8 @@ class Dataloader_graph(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         # : Node Features
-        node_features = torch.zeros((self.n_vectors, 3*self.n_vectors)) 
-        for w in range(self.n_vectors):
+        node_features = torch.zeros((self.n_nodes, 3*self.n_vectors)) 
+        for w in range(self.n_nodes):
             node_features[w,:] = torch.cat([self.vectors[w], torch.tensor(self.data_in[idx].real, dtype=torch.torch.float64), torch.tensor(self.data_in[idx].imag, dtype=torch.torch.float64)])
 #         graph = Data(x = node_features, edge_index = self.edge_index, y = self.data_target[idx])
         sample = {}
