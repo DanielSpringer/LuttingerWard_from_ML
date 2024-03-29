@@ -2,10 +2,11 @@ import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 import copy
-import lightning as L
+# import lightning as L
+import pytorch_lightning as pl
 
 
-class model_wraper_AE(L.LightningModule):
+class model_wraper_ae(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         module = __import__("models")
@@ -18,18 +19,18 @@ class model_wraper_AE(L.LightningModule):
     def forward(self, batch: torch.Tensor):
         return self.model(batch)
 
-    def training_step(self,batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         pred = self.forward(batch[0])
         target = batch[1]
-        loss = self.criterion_mse(pred, target) # free energy
+        loss = self.criterion_mse(pred, target)
         self.log('train_loss', loss.item())
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        x, y = batch
-        pred = self.forward(x)
-        loss = self.criterion_mse(pred, y)
-        self.val_pred.append([y, pred])
+        pred = self.forward(batch[0])
+        target = batch[1]
+        loss = self.criterion_mse(pred, target)
+        self.val_pred.append([target, pred])
         self.val_loss.append(loss)
         self.log('val_loss', loss.item(), prog_bar=True)
         return loss
@@ -45,7 +46,7 @@ class model_wraper_AE(L.LightningModule):
 
 
 
-class model_wraper_gnn(L.LightningModule):
+class model_wraper_gnn(pl.LightningModule):
 
     def __init__(self, config):
         super().__init__()
@@ -132,7 +133,7 @@ class auto_encoder(torch.nn.Module):
     def __init__(self, config):
         super(auto_encoder, self).__init__()
         self.config = config
-        self.activation = nn.SiLU()# nn.LeakyReLU()
+        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
 
         self.embedding = nn.Sequential(
             nn.Linear(config["in_dim"], config["embedding_dim"])
