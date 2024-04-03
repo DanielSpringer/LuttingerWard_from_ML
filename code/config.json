@@ -1,0 +1,15 @@
+{
+    "MODEL_NAME": "GreenGNN",
+    "MODEL_WRAPER": "model_wraper_gnn",
+    "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/gmax_10x10.hdf5",
+    "DATA_LOADER": "Dataset_graph_split",
+    "n_nodes": 100,
+    "weird": true,
+    "batch_size": 1,
+    "learning_rate": 0.0001,
+    "weight_decay": 1e-05,
+    "epochs": 100,
+    "device_type": "gpu",
+    "devices": 2,
+    "num_nodes": 1
+}

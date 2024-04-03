@@ -1,49 +1,79 @@
+#%%
 import torch
 import models
+import wrapers
 from torch.utils.data import DataLoader
 import load_data
 import datetime
 from pytorch_lightning.loggers import TensorBoardLogger
 import pytorch_lightning as pl
 from pytorch_lightning.plugins.environments import LightningEnvironment
+import json
+import os
 
 
 def train():
-    config = {}
-    config["MODEL_NAME"] = "GreenGNN"
-    config["n_nodes"] = 100
-    config["weird"] = False
-    config["PATH_TRAIN"] = "../data/batch1.hdf5"
-    config["batch_size"] = 1
-    config["learning_rate"] = 1e-4
-    config["weight_decay"] = 1e-5
+    ### JSON File contains full information about entire run (model, data, hyperparameters)
+    MODEL_NAME = "GNN_basis"
+    config = json.load(open('confmod_graph_neural_network.json'))[MODEL_NAME]
+    # MODEL_NAME = "AUTO_ENCODER_1"
+    # config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
 
-    data_set = load_data.Dataloader_graph(config)
-    # train_set, validation_set, unused_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.3), int(data_set.__len__()*0.05), int(data_set.__len__()*0.65)], generator=torch.Generator().manual_seed(42))
-    train_set, validation_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.8), int(data_set.__len__()*0.2)], generator=torch.Generator().manual_seed(42))
+    ''' Dataloading '''
+    ### > Separate training and validation HDF5 files 
+    ld = __import__("load_data")
+    train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "train")
+    validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)
     validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
+    ### > Single HDF5 file containing training and validation data 
+    # data_set = load_data.Dataset_ae(config)
+    # # train_set, validation_set, unused_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.3), int(data_set.__len__()*0.05), int(data_set.__len__()*0.65)], generator=torch.Generator().manual_seed(42))
+    # train_set, validation_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.8), int(data_set.__len__()*0.2)], generator=torch.Generator().manual_seed(42))
+    # train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)
+    # validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
 
-    model = models.model_wraper_gnn(config)
-    # SAVEPATH = "../saves/save_weightedLoss_GreenGNN_Nodes100_2024-02-21/version_2/checkpoints/epoch=14-step=600000.ckpt"
-    # checkpoint = torch.load(SAVEPATH)#, map_location=torch.device('cpu'))
-    # model.load_state_dict(checkpoint['state_dict'])
-    # print("...apparently loaded model.")
+
+    ''' Model setup '''
+    wrapers = __import__("wrapers")
+    model = getattr(wrapers, config["MODEL_WRAPER"])(config)
+
+
+    ''' Model loading from save file '''
+    if config["continue"] == True:
+        SAVEPATH = config["SAVEPATH"]
+        checkpoint = torch.load(SAVEPATH)
+        model.load_state_dict(checkpoint['state_dict'])
+        print(" >>> Loaded checkpotin")
+
+
+    ''' Logging and saving '''
+    DATA_NAME = os.path.splitext(os.path.basename(config["PATH_TRAIN"]))[0]
 
     PATH = ""
-    # CONFIGURATION = f"../saves/UGrid/save_{config['MODEL_NAME']}_{datetime.datetime.now().date()}"
-    CONFIGURATION = f"../saves/save_weightedLoss2_{config['MODEL_NAME']}_Nodes{config['n_nodes']}_{datetime.datetime.now().date()}"
+    CONFIGURATION = f"../saves/{DATA_NAME}/save_{config['MODEL_NAME']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
+    # CONFIGURATION = f"../saves/save_{config['MODEL_NAME']}_Nodes{config['n_nodes']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
     logger = TensorBoardLogger(PATH, name=CONFIGURATION)
 
 
-    # ### SLURM Training
-    trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=2, num_nodes=1, strategy='ddp', logger=logger)
-    # ### Jupyter Notebook Training
+    # '''Define (pytorch_lightning) Trainer '''
+    # ### > SLURM Training
+    trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger)
+    # ### > Jupyter Notebook Training
     # trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
-    # ### Jupyter Notebook CPU Training
+    # ### > Jupyter Notebook CPU Training
     # trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
-
+    
+    ''' Train '''
     trainer.fit(model, train_dataloader, validation_dataloader)
+
+    ''' Saving configuration file into log folder ''' 
+    LOGDIR = trainer.log_dir
+    json_object = json.dumps(config, indent=4)
+    with open(LOGDIR+"/config.json", "w") as outfile:
+        outfile.write(json_object)
+
+
 
 
 def main():

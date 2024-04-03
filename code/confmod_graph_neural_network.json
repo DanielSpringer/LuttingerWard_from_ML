@@ -1,0 +1,36 @@
+{
+    "GNN_basis": {
+        "MODEL_NAME": "GNN_basis",
+        "MODEL_WRAPER": "model_wraper_gnn",
+        "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/U2c0_b10b50_gmax_10x10.hdf5",
+        "DATA_LOADER": "Dataset_graph_split",
+        
+        "continue": false,
+        "SAVEPATH": "",
+        
+        "n_nodes":                  200,
+        "weird":                    false,
+        "batch_size":               1,
+        "learning_rate":            1e-4,
+        "weight_decay":             1e-5,
+        "epochs":                   80,
+
+        "omega_steps":              200,
+        "tau_steps":                200,
+        "out_dim":                  200,
+        "message_in_dim":           800,
+        "message_hidden_dim":       200,
+        "message_out_dim":          200,
+        "update_hidden_dim":        200,
+        "update_out_dim":           600,
+        "pre_pool_hidden_dim":      200,
+        "pre_pool_out_dim":         200,
+        "post_pool_hidden_dim":     200,
+        "nr_coefficients":          200,
+        "hidden_layer":             4,
+
+        "device_type": "gpu",
+        "devices": 2,
+        "num_nodes": 4
+    }
+}

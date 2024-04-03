@@ -1,0 +1,23 @@
+{
+    "AUTO_ENCODER_1": {
+        "MODEL_NAME": "auto_encoder",
+        "MODEL_WRAPER": "model_wraper_ae",
+        "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/U2c0_b10b50_gmax_10x10.hdf5",
+        "DATA_LOADER": "Dataset_ae_split",
+        "batch_size": 10,
+        "learning_rate": 1e-4,
+        "weight_decay": 1e-5,
+        "epochs": 150,
+
+        "in_dim": 400,
+        "embedding_dim": 256,
+        "hidden1_dim": 128,
+        "hidden2_dim": 64,
+        "encoder_dim": 56,
+        "out_dim": 400,
+
+        "device_type": "gpu",
+        "devices": 2,
+        "num_nodes": 4
+    }
+}
