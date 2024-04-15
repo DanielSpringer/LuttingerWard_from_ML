@@ -32,6 +32,27 @@ class Dataset_baseline(Dataset):
         return self.data_in[idx], self.data_target[idx]
 
 
+class Dataset_baseline_conv(Dataset):
+
+    def __init__(self, config):
+        PATH = config["PATH_TRAIN"]
+        f = h5py.File(PATH, 'r')
+        data_in = np.array(f["Set1"]["GImp"])
+        data_target = np.array(f["Set1"]["SImp"])
+        self.data_in = torch.stack([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)],dim=1)
+        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
+#         self.data_target = torch.stack([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)],dim=1)
+#         print(self.data_in.shape)
+
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx]
+    
+    
 class Dataset_ae(Dataset):
 
     def __init__(self, config):
@@ -52,15 +73,17 @@ class Dataset_ae(Dataset):
 
 
 class Dataset_ae_split(Dataset):
-
+    ''' Compared to Dataset_ae, this dataset expects input data where the split between training and
+        validation has already been performed, potentially by physically meaningful aspects. 
+        >> VARIABLES:
+        PATH_TRAIN: full path to data hdf5
+        data_type: "train" or "valid"
+    '''
     def __init__(self, config, **kwargs):
         PATH = config["PATH_TRAIN"]
-        print(PATH)
         f = h5py.File(PATH, 'r')
-
         data_in = np.array(f[kwargs["data_type"]]["data"][:,0,:])
         data_target = np.array(f[kwargs["data_type"]]["data"][:,1,:])
-
         self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
         self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
 
@@ -71,6 +94,72 @@ class Dataset_ae_split(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
+
+
+class Dataset_encgiv_split(Dataset):
+    ''' Compared to Dataset_ae_split, this dataset returns the non-interacting G0 as input and target by solving the Dyson equation.
+    '''
+    def __init__(self, config, **kwargs):
+        PATH = config["PATH_TRAIN"]
+        f = h5py.File(PATH, 'r')
+        g0 = np.array(f[kwargs["data_type"]]["data"][:,2,:])
+        self.data_in = torch.cat([torch.tensor(g0.real, dtype=torch.float32), torch.tensor(g0.imag, dtype=torch.float32)], axis=1)
+        self.data_target = self.data_in
+
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx]
+
+
+class Dataset_injection_split(Dataset):
+    ''' Compared to Dataset_ae_split, this dataset returns the non-interacting G0 as input and target by solving the Dyson equation.
+    '''
+    def __init__(self, config, **kwargs):
+        PATH = config["PATH_TRAIN"]
+        f = h5py.File(PATH, 'r')
+        data_in = np.array(f[kwargs["data_type"]]["data"][:,0,:])
+        data_target = np.array(f[kwargs["data_type"]]["data"][:,1,:])
+        self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
+        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
+
+        g0 = np.array(f[kwargs["data_type"]]["data"][:,2,:])
+        self.g0 = torch.cat([torch.tensor(g0.real, dtype=torch.float32), torch.tensor(g0.imag, dtype=torch.float32)], axis=1)
+
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx], self.g0[idx]
+
+
+class Dataset_convergence_split(Dataset):
+    ''' Compared to Dataset_ae_split, this dataset returns the non-interacting G0 as input and target by solving the Dyson equation.
+    '''
+    def __init__(self, config, **kwargs):
+        sample_idx = kwargs["target_sample"]
+        PATH = config["PATH_TRAIN"]
+        f = h5py.File(PATH, 'r')
+        data_in = np.array(f[kwargs["data_type"]]["data"][sample_idx,0,:])[None]
+        data_target = np.array(f[kwargs["data_type"]]["data"][sample_idx,1,:])[None]
+        self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
+        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
+
+        g0 = np.array(f[kwargs["data_type"]]["data"][sample_idx,2,:])[None]
+        self.g0 = torch.cat([torch.tensor(g0.real, dtype=torch.float32), torch.tensor(g0.imag, dtype=torch.float32)], axis=1)
+
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx], self.g0[idx]
 
 
 class Dataset_graph(Dataset):
