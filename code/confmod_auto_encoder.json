@@ -1,23 +1,90 @@
 {
     "AUTO_ENCODER_1": {
         "MODEL_NAME": "auto_encoder",
-        "MODEL_WRAPER": "model_wraper_ae",
+        "MODEL_WRAPER": "model_wraper_encgiv",
+        "continue": false,
+        "SAVEPATH": "",
+
         "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/U2c0_b10b50_gmax_10x10.hdf5",
-        "DATA_LOADER": "Dataset_ae_split",
-        "batch_size": 10,
+        "DATA_LOADER": "Dataset_encgiv_split",
+
+        "batch_size": 20,
         "learning_rate": 1e-4,
         "weight_decay": 1e-5,
         "epochs": 150,
 
         "in_dim": 400,
         "embedding_dim": 256,
-        "hidden1_dim": 128,
-        "hidden2_dim": 64,
-        "encoder_dim": 56,
+        "hidden1_dim": 196,
+        "hidden2_dim": 128,
+        "encoder_dim": 98,
         "out_dim": 400,
+
+        "device_type": "gpu",
+        "devices": 2,
+        "num_nodes": 2
+    },
+
+    "INJECTION_AUTO_ENCODER_1": {
+        "ENCODER_MODEL_SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/U2c0_b10b50_gmax_10x10/save_auto_encoder_BS20_2024-04-15/version_0/",
+        "ENCODER_MODEL_SAVEFILE": "checkpoints/epoch=74-step=149625.ckpt",
+        "ENCODER_MODEL_WRAPER": "model_wraper_encgiv",
+        "injection_dim": 98,
+
+        "MODEL_NAME": "auto_encoder_injection_1",
+        "MODEL_WRAPER": "model_wraper_G0injection",
+        "continue": false,
+        "SAVEPATH": "",
+
+
+        "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/U2c0_b10b50_gmax_10x10.hdf5",
+        "DATA_LOADER": "Dataset_injection_split",
+
+        "batch_size": 20,
+        "learning_rate": 1e-4,
+        "weight_decay": 1e-5,
+        "epochs": 150,
+
+        "in_dim": 400,
+        "embedding_dim": 384,
+        "hidden1_dim": 256,
+        "hidden2_dim": 128,
+        "encoder_dim": 96,
+        "out_dim": 400,
+
+        "device_type": "gpu",
+        "devices": 2,
+        "num_nodes": 1
+    },
+
+    "CONVERGENCE_AUTO_ENCODER_1": {
+        "ENCODER_MODEL_SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/U2c0_b10b50_gmax_10x10/save_auto_encoder_BS20_2024-04-15/version_0/",
+        "ENCODER_MODEL_SAVEFILE": "checkpoints/epoch=74-step=149625.ckpt",
+        "ENCODER_MODEL_WRAPER": "model_wraper_encgiv",
+
+        "INJECTION_MODEL_SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/U2c0_b10b50_gmax_10x10/save_auto_encoder_injection_1_BS20_2024-04-15/version_0/",
+        "INJECTION_MODEL_SAVEFILE": "checkpoints/epoch=99-step=199500.ckpt",
+        "INJECTION_MODEL_WRAPER": "model_wraper_G0injection",
+
+        "MODEL_NAME": "convergence_step",
+        "MODEL_WRAPER": "model_wraper_convergence",
+        "continue": false,
+        "SAVEPATH": "",
+
+        "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/U2c0_b10b50_gmax_10x10.hdf5",
+        "DATA_LOADER": "Dataset_convergence_split",
+
+        "smoothing": false,
+
+        "batch_size": 10,
+        "convergence_noise": 0.5,
+        "learning_rate": 1e-5,
+        "weight_decay": 0,
+        "epochs": 150,
 
         "device_type": "gpu",
         "devices": 2,
         "num_nodes": 4
     }
+
 }

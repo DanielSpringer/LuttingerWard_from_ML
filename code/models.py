@@ -109,9 +109,96 @@ class auto_encoder_conv(torch.nn.Module):
         x = self.decoding(x)
         return x[:,0,:]
     
-    
 
-################################ GRAPH 
+class auto_encoder_injection_1(torch.nn.Module):
+    def __init__(self, config):
+        super(auto_encoder_injection_1, self).__init__()
+        self.config = config
+        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
+
+        self.embedding = nn.Sequential(
+            nn.Linear(config["in_dim"] + config["injection_dim"], config["embedding_dim"])
+        )
+
+        self.encode1 = nn.Sequential(
+            nn.Linear(config["embedding_dim"] + config["injection_dim"], config["hidden1_dim"]),
+            self.activation
+        )
+        self.encode2 = nn.Sequential(
+            nn.Linear(config["hidden1_dim"] + config["injection_dim"], config["hidden2_dim"]),
+            self.activation
+        )
+        self.encode3 = nn.Sequential(
+            nn.Linear(config["hidden2_dim"] + config["injection_dim"], config["encoder_dim"]),
+            self.activation
+        )
+
+        self.decode = nn.Sequential(
+            nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["out_dim"])
+        )
+
+    def forward(self, data_in, g0_inject):
+        x = torch.cat([data_in,g0_inject], dim=1)
+        x = self.embedding(x)
+        x = torch.cat([x,g0_inject], dim=1)
+        x = self.encode1(x)
+        x = torch.cat([x,g0_inject], dim=1)
+        x = self.encode2(x)
+        x = torch.cat([x,g0_inject], dim=1)
+        x = self.encode3(x)
+        x = self.decode(x)
+        return x    
+
+
+class auto_encoder_injection_2(torch.nn.Module):
+    def __init__(self, config):
+        super(auto_encoder_injection_2, self).__init__()
+        self.config = config
+        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
+
+        self.embedding = nn.Sequential(
+            nn.Linear(config["in_dim"] + config["injection_dim"], config["embedding_dim"])
+        )
+
+        self.encode1 = nn.Sequential(
+            self.activation,
+            nn.Linear(config["embedding_dim"] + config["injection_dim"], config["hidden1_dim"])
+        )
+        self.encode2 = nn.Sequential(
+            self.activation,
+            nn.Linear(config["hidden1_dim"] + config["injection_dim"], config["hidden2_dim"])
+        )
+        self.encode3 = nn.Sequential(
+            self.activation,
+            nn.Linear(config["hidden2_dim"] + config["injection_dim"], config["encoder_dim"])
+        )
+
+        self.decode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["encoder_dim"] + config["injection_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"] + config["injection_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["out_dim"])
+        )
+
+    def forward(self, data_in, g0_inject):
+        x = self.embedding(data_in)
+        x = torch.cat([x,g0_inject], dim=1)
+        x = self.encode1(x)
+        x = torch.cat([x,g0_inject], dim=1)
+        x = self.encode2(x)
+        x = torch.cat([x,g0_inject], dim=1)
+        x = self.encode3(x)
+        x = self.decode(x)
+        return x    
+
+
+################################ GRAPH NETWORKS
 class Swish(nn.Module):
     def __init__(self, beta=1):
         super(Swish, self).__init__()
