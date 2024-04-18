@@ -3,113 +3,12 @@ from torch import nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 import copy
 # import lightning as L
-import pytorch_lightning as pl
+import pytorch_lightning as L
 
-### ARE THESE USED?
-# class Encoder(torch.nn.Module):
-#     """
-#     Encodes Input data, for now with hardcoded dimensions and layers.
-#     """
-#     def __init__(self, config):
-#         super().__init__()
-#         self.encode = nn.Sequential(
-#             self.activation,
-#             nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
-#             self.activation,
-#             nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
-#             self.activation,
-#             nn.Linear(config["hidden2_dim"], config["encoder_dim"])
-#         )
+from model_AE import *
+from model_FC import *
 
-#     def forward(self, x):
-#         return self.encode(x)
 
-# class Decoder(torch.nn.Module):
-#     """
-#     Decodes Output data, for now with hardcoded dimensions and layers.
-#     """
-#     def __init__(self, config):
-#         super().__init__()
-#         self.decode = nn.Sequential(
-#             self.activation,
-#             nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
-#             self.activation,
-#             nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
-#             self.activation,
-#             nn.Linear(config["hidden1_dim"], config["out_dim"])
-#         )
-    
-#     def forward(self, x):
-#         return self.decode(x)
-### ARE THESE USED?
-
-class auto_encoder(torch.nn.Module):
-    def __init__(self, config):
-        super(auto_encoder, self).__init__()
-        self.config = config
-        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
-
-        self.embedding = nn.Sequential(
-            nn.Linear(config["in_dim"], config["embedding_dim"])
-        )
-
-        self.encode = nn.Sequential(
-            self.activation,
-            nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
-            self.activation,
-            nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
-            self.activation,
-            nn.Linear(config["hidden2_dim"], config["encoder_dim"])
-        )
-
-        self.decode = nn.Sequential(
-            self.activation,
-            nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
-            self.activation,
-            nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
-            self.activation,
-            nn.Linear(config["hidden1_dim"], config["out_dim"])
-        )
-
-    def forward(self, data_in):
-        x = self.embedding(data_in)
-        x = self.encode(x)
-        x = self.decode(x)
-        return x
-    
-    
-    
-class auto_encoder_conv(torch.nn.Module):
-    def __init__(self, config):
-        super(auto_encoder_conv, self).__init__()
-        self.config = config
-        self.embedding = nn.Sequential(
-            nn.Linear(100, config["embedding_dim"])
-        )
-
-        self.encoding = nn.Sequential(
-            nn.Conv1d(in_channels=2, out_channels=8, kernel_size=32),
-            nn.AvgPool1d(kernel_size=(16), stride=1),
-            nn.Conv1d(in_channels=8, out_channels=32, kernel_size=16),
-            nn.AvgPool1d(kernel_size=(8), stride=1),
-            nn.Conv1d(in_channels=32, out_channels=2, kernel_size=8),
-            nn.AvgPool1d(kernel_size=(7), stride=2),
-        )
-
-        self.decoding = nn.Sequential(
-            nn.Linear(24, config["hidden2_dim"]),
-            nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
-            nn.Linear(config["hidden1_dim"], 200)
-        )
-
-    def forward(self, data_in):
-        x = self.embedding(data_in)
-        x = torch.reshape(x, [self.config["batch_size"],2,-1])
-        x = self.encoding(x)
-        x = self.decoding(x)
-        return x[:,0,:]
-    
-    
 
 ################################ GRAPH 
 class Swish(nn.Module):
