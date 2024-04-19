@@ -1,4 +1,7 @@
 import torch.optim
+from torch import nn
+
+from LossFunctions import *
 
 # ==================== Helpers ====================
 def AE_config_to_hparams(config: dict) -> dict:
@@ -30,7 +33,7 @@ def activation_str_to_layer(activation_str_in: str) -> nn.Module:
         else:
             raise ValueError("unkown activation: " + act)
         
-def loss_str_to_layer(loss_str_in: str) -> nn.Module:
+def loss_str_to_layer(loss_str_in: str, ylen=None) -> nn.Module:
         loss_str = loss_str_in.lower()
         if loss_str == "MSE":
             return nn.MSELoss()
@@ -46,7 +49,7 @@ def loss_str_to_layer(loss_str_in: str) -> nn.Module:
             raise ValueError("unkown activation: " + loss_str)
         
 def optimizer_str_to_obj(model):
-    opt_str = opt_str_in.hparams['optimizer'].lower()
+    opt_str = model.hparams['optimizer'].lower()
     if opt_str == "SGD":
         return torch.optim.SGD(model.parameters(), lr=model.lr,
                                 momentum=model.hparams["SGD_momentum"],
@@ -65,3 +68,11 @@ def optimizer_str_to_obj(model):
         return torch.optim.Adam(model.parameters(), lr=model.lr)
     else:
         raise ValueError("unkown optimzer: " + model.hparams["optimizer"])
+    
+def dtype_str_to_type(dtype_str: str):
+    if dtype_str.lower() == "float32":
+        return torch.float32
+    elif dtype_str.lower() == "float64":
+        return torch.float64
+    else:
+        raise ValueError("unkown dtype: " + dtype_str)

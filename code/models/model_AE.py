@@ -1,13 +1,10 @@
-import copy
 import torch
 import torch.nn as nn
+import pytorch_lightning as L
+import sys
+sys.path.append('G:\\Codes\\LuttingerWard_from_ML\\code\\utils')
 from LossFunctions import *
 from utils import *
-
-
-
-
-
 
 # ================ Implementation =================
 class AutoEncoder_01(L.LightningModule):
@@ -30,7 +27,7 @@ class AutoEncoder_01(L.LightningModule):
             res = [
                 self.dropout_in if i == 0 else self.dropout,
                 nn.Linear(self.out_dim, Nout),
-                nn.BatchNorm1d(Nout) if (not last_layer) and hparams["with_batchnorm"] else nn.Identity(),
+                nn.BatchNorm1d(Nout) if (not last_layer) and self.hparams["with_batchnorm"] else nn.Identity(),
                 self.activation if (not last_layer) else nn.Identity() 
             ]
             self.out_dim = Nout
@@ -40,7 +37,7 @@ class AutoEncoder_01(L.LightningModule):
         bl_encoder = []
         for i in range(self.hparams['n_layers']):
             if i == self.hparams['n_layers'] - 1:
-                bl_encoder.extend(linear_block(hparams['latent_dim'], last_layer = True))
+                bl_encoder.extend(linear_block(self.hparams['latent_dim'], last_layer = True))
             else:
                 bl_encoder.extend(linear_block(self.out_dim - ae_step_size))
 
@@ -62,34 +59,7 @@ class AutoEncoder_01(L.LightningModule):
                 nn.init.kaiming_normal_(layer.weight, mode="fan_in", nonlinearity="relu")
                 nn.init.zeros_(layer.bias)
 
-        self.save_hyperparameters(hparams)
-
-    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)  # self.forward(x)
-        loss = self.loss(y_hat, y)
-        self.log("train_loss", loss, prog_bar=False)
-        return loss
-
-    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)
-        loss = self.loss(y_hat, y)
-        self.log("val_loss", loss, prog_bar=True)
-        return loss
-
-    def test_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        x, y = batch
-        y_hat = self(x)
-        loss = self.loss(y_hat, y)
-        self.log("test_loss", loss)
-        return loss
-
-    def configure_optimizers(self) -> dict:
-        optimizer = optimizer_str_to_obj(self)
-        #TODO: expose scheduler parameters to config 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=10, verbose=True)
-        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+        self.save_hyperparameters(self.hparams)
 
     
     

@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-import lightning as L
+import pytorch_lightning as L
 import h5py
 torch.set_float32_matmul_precision("medium")
 import numpy as np
 
-import custom_loss
+
 
 class weightedLoss(nn.Module):
     def __init__(self, ylen: int, loss = nn.MSELoss()):

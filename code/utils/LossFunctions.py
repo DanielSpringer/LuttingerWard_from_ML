@@ -1,9 +1,13 @@
+import torch
+import torch.nn as nn
+from torch.func import functional_call, grad, vmap
+
 class DiffLoss(nn.Module):
     def __init__(self, ylen: int, loss = nn.MSELoss(), eps = 1e-4):
         super().__init__()
         
     def forward(self,pred,targets):    
-        dfdx = vmap(grad(f), in_dims=(0, None))
+        dfdx = vmap(grad(pred - targets), in_dims=(0, None))
 
 class ScaledLoss(nn.Module):
     def __init__(self, ylen: int, loss = nn.MSELoss(), eps = 1e-4):

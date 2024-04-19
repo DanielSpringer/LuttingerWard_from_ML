@@ -1,4 +1,4 @@
-from model_FC import SimpleFC
+from code.models.model_FC import SimpleFC
 import lightning as L
 from lightning.pytorch.tuner import Tuner
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping, StochasticWeightAveraging, RichModelSummary, DeviceStatsMonitor
