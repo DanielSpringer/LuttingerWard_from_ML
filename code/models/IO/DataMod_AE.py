@@ -3,10 +3,17 @@ import torch
 import h5py
 import copy
 import numpy as np
-import sys
-sys.path.append('G:\\Codes\\LuttingerWard_from_ML\\code\\utils')
-from utils import *
+
 from torch.utils.data import Dataset, DataLoader, random_split
+
+#TODO relative import does not work...
+def dtype_str_to_type(dtype_str: str):
+    if dtype_str.lower() == "float32":
+        return torch.float32
+    elif dtype_str.lower() == "float64":
+        return torch.float64
+    else:
+        raise ValueError("unkown dtype: " + dtype_str)
 
 class AE_Dataset(Dataset):
     """
@@ -54,7 +61,7 @@ class DataMod_AE(L.LightningDataModule):
         """
         Download and transform datasets. 
         """
-        with h5py.File(self.train_path, "r") as hf:
+        with h5py.File(self.data, "r") as hf:
             x = hf["Set1/GImp"][:]
             #y = hf["Set1/GImp"][:]
         x = np.concatenate((x.real, x.imag), axis=1)

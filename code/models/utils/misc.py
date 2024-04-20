@@ -1,49 +1,31 @@
 import torch.optim
 from torch import nn
 
-from LossFunctions import *
+from .LossFunctions import *
 
 # ==================== Helpers ====================
-def AE_config_to_hparams(config: dict) -> dict:
-    """
-    This extracts all model relevant parameters from the config 
-    dict (which also contains runtime related information).
-    """
-    hparams = {}
-    hparams['batch_size'] = config['batch_size']
-    hparams['lr'] = config['learning_rate']
-    hparams['dropout_in'] = config['dropout_in']
-    hparams['dropout'] = config['dropout']
-    hparams['activation'] = config['activation']
-    hparams['in_dim'] = config['in_dim']
-    hparams['latent_dim'] = config['latent_dim']
-    hparams['n_layers'] = config['n_layers']
-    hparams['with_batchnorm'] = config['with_batchnorm']
-    hparams['optimizer'] = config['optimizer']
-    return hparams
-
 def activation_str_to_layer(activation_str_in: str) -> nn.Module:
         act = activation_str_in.lower()
-        if act == "LeakyReLU":
+        if act == "leakyrelu":
             return nn.LeakyReLU() 
-        elif act == "SiLU":
+        elif act == "silu":
             return nn.SiLU()
-        elif act == "ReLU":
+        elif act == "relu":
             return nn.ReLU()
         else:
             raise ValueError("unkown activation: " + act)
         
 def loss_str_to_layer(loss_str_in: str, ylen=None) -> nn.Module:
         loss_str = loss_str_in.lower()
-        if loss_str == "MSE":
+        if loss_str == "MSE".lower():
             return nn.MSELoss()
-        elif loss_str == "WeightedMSE":
+        elif loss_str == "WeightedMSE".lower():
             return WeightedLoss(ylen)
-        elif loss_str == "WeightedMSE2":
+        elif loss_str == "WeightedMSE2".lower():
             return WeightedLoss2(ylen)
-        elif loss_str == "ScaledMSE":
+        elif loss_str == "ScaledMSE".lower():
             return ScaledLoss(ylen)
-        elif loss_str == "WeightedScaledLoss":
+        elif loss_str == "WeightedScaledLoss".lower():
             return WeightedScaledLoss(ylen)
         else:
             raise ValueError("unkown activation: " + loss_str)

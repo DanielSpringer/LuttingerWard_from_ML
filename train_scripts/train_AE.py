@@ -1,29 +1,30 @@
 
 import sys
+from os.path import dirname, abspath, join
+
 #TODO I hate the python import system. someone else fix this please.
-sys.path.append('G:\\Codes\\LuttingerWard_from_ML\\code\\models')
-
+sys.path.append(join(dirname(__file__),'../code/models'))
 from model_AE import AutoEncoder_01
-sys.path.append('G:\\Codes\\LuttingerWard_from_ML\\code\\IO')
-import DataMod_AE
+sys.path.append(join(dirname(__file__),'../code/models/IO'))
+from DataMod_AE import *
 
-import lightning as L
-from lightning.pytorch.tuner import Tuner
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping, StochasticWeightAveraging, GradientAccumulationScheduler, RichModelSummary, DeviceStatsMonitor
-from lightning.pytorch.profilers import PyTorchProfiler
+import pytorch_lightning as L
+from pytorch_lightning.tuner import Tuner
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping, StochasticWeightAveraging, GradientAccumulationScheduler, RichModelSummary, DeviceStatsMonitor
+from pytorch_lightning.profilers import PyTorchProfiler
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 
 import json
-from os.path import dirname, abspath, join
 
 torch.set_float32_matmul_precision("highest")
 torch.set_default_dtype(torch.float64)
 
 
 def main(args):
-    config = json.load(open(join(dirname(abspath(__file__)),'../configs/confmod_auto_encoder.json')))
+    config = json.load(open(join(dirname(__file__),'../configs/confmod_auto_encoder.json')))
+    print(config)
     torch.manual_seed(config['seed'])
     model = AutoEncoder_01(config) 
     dataMod = DataMod_AE(config)
@@ -45,3 +46,8 @@ def main(args):
                       callbacks=callbacks, logger=logger, gradient_clip_val=0.5) #precision="16-mixed", 
 
     trainer.fit(model, datamodule=dataMod)
+
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    args = parser.parse_args()
+    main(args)

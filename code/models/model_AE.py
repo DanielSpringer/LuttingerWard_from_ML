@@ -1,17 +1,40 @@
 import torch
 import torch.nn as nn
 import pytorch_lightning as L
-import sys
-sys.path.append('G:\\Codes\\LuttingerWard_from_ML\\code\\utils')
-from LossFunctions import *
-from utils import *
+
+from utils.LossFunctions import *
+from utils.misc import *
+
+def AE_config_to_hparams(config: dict) -> dict:
+    """
+    This extracts all model relevant parameters from the config 
+    dict (which also contains runtime related information).
+    """
+    hparams = {}
+    hparams['batch_size'] = config['batch_size']
+    hparams['lr'] = config['learning_rate']
+    hparams['dropout_in'] = config['dropout_in']
+    hparams['dropout'] = config['dropout']
+    hparams['activation'] = config['activation']
+    hparams['in_dim'] = config['in_dim']
+    hparams['latent_dim'] = config['latent_dim']
+    hparams['n_layers'] = config['n_layers']
+    hparams['with_batchnorm'] = config['with_batchnorm']
+    hparams['optimizer'] = config['optimizer']
+    hparams['loss'] = config['loss']
+    hparams['weight_decay'] = config['weight_decay']
+    return hparams
+
 
 # ================ Implementation =================
 class AutoEncoder_01(L.LightningModule):
     def __init__(self, config):
-        super().__init__()
+        super(AutoEncoder_01, self).__init__()
         
-        self.hparams = AE_config_to_hparams(config)
+        hparams = AE_config_to_hparams(config)
+        for key in hparams.keys():
+            self.hparams[key]=hparams[key]
+
         self.dropout_in = nn.Dropout(self.hparams['dropout_in']) if self.hparams['dropout_in'] > 0 else nn.Identity()
         self.dropout = nn.Dropout(self.hparams['dropout']) if self.hparams['dropout'] > 0  else nn.Identity()
         self.activation = activation_str_to_layer(self.hparams['activation'])
@@ -61,6 +84,33 @@ class AutoEncoder_01(L.LightningModule):
 
         self.save_hyperparameters(self.hparams)
 
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        x, y = batch
+        pred = self.forward(x)
+        loss = self.loss(pred, x)
+        self.log("train_loss", loss, prog_bar=False)
+        return loss
+
+    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        x, y = batch
+        pred = self.forward(x)
+        loss = self.loss(pred, x)
+        self.log("val_loss", loss, prog_bar=True)
+        return loss
+
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(params=self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['weight_decay'])
+        return optimizer
+    
+    def load_model_state(self, PATH):
+        checkpoint = torch.load(PATH, map_location='cuda:0')
+        self.load_state_dict(checkpoint['state_dict'])
     
     
     

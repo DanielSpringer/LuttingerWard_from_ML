@@ -4,7 +4,7 @@ from torch_geometric.nn import MessagePassing, global_mean_pool
 # import lightning as L
 import pytorch_lightning as L
 
-import wrapper_AE
+from wrapper_AE import *
 
 
 class model_wraper_gnn(pl.LightningModule):

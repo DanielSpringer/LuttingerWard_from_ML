@@ -1,5 +1,6 @@
 import pytorch_lightning as L
 
+from ..models import *
 
 
 class wrapped_AE(L.LightningModule):
@@ -39,6 +40,7 @@ class wrapped_AE(L.LightningModule):
         #TODO: expose scheduler parameters to config 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=10, verbose=True)
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "val_loss"}
+    
     def forward(self, batch: torch.Tensor):
         return self.model(batch)
 
