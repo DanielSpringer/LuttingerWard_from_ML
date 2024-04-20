@@ -1,46 +1,53 @@
-from code.models.model_FC import SimpleFC
-import lightning as L
-from lightning.pytorch.tuner import Tuner
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping, StochasticWeightAveraging, RichModelSummary, DeviceStatsMonitor
-from lightning.pytorch.profilers import PyTorchProfiler
+
+import sys
+from os.path import dirname, abspath, join
+
+#TODO I hate the python import system. someone else fix this please.
+sys.path.append(join(dirname(__file__),'../code/models'))
+from model_AE import AutoEncoder_01
+sys.path.append(join(dirname(__file__),'../code/models/IO'))
+from DataMod_AE import *
+
+import pytorch_lightning as L
+from pytorch_lightning.tuner import Tuner
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping, StochasticWeightAveraging, GradientAccumulationScheduler, RichModelSummary, DeviceStatsMonitor
+from pytorch_lightning.profilers import PyTorchProfiler
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger
-torch.set_float32_matmul_precision("high")
+from argparse import ArgumentParser
 
-if __name__ == "__main__":
+import json
 
-    hparams = {
-            "model_name": "FullCNN",
-            "fc_dims": [201, 200, 200, 200, 200, 200, 200, 200],
-            "dropout_in": 0.0,
-            "dropout": 0.4,
-            "with_batchnorm": True,
-            "lr": 0.01,
-            "batch_size": 64,
-            "train_path": "../data/batch1.hdf5",
-            "optimizer": "Adam",
-            "SGD_weight_decay": 0.0,
-            "SGD_momentum": 0.9,
-            "SGD_dampening": 0.0,
-            "SGD_nesterov": False,
-               }
-    model = SimpleFC(hparams)
+torch.set_float32_matmul_precision("highest")
+torch.set_default_dtype(torch.float64)
+
+
+def main(args):
+    config = json.load(open(join(dirname(__file__),'../configs/confmod_auto_encoder.json')))
+    print(config)
+    torch.manual_seed(config['seed'])
+    model = AutoEncoder_01(config) 
+    dataMod = DataMod_AE(config)
+
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    early_stopping = EarlyStopping(
-            monitor="val_loss",
-            patience=50)
-    logger = TensorBoardLogger("lightning_logs", name=hparams["model_name"])
+    logger = TensorBoardLogger("lightning_logs", name="VAE_Linear")
     val_ckeckpoint = ModelCheckpoint( # saved in `trainer.default_root_dir`/`logger.version`/`checkpoint_callback.dirpath`
             filename="{epoch}-{step}-{val_loss:.8f}",
             monitor="val_loss",
             mode="min",
-            save_top_k=10,
+            save_top_k=2,
             save_last =True
             )
-    swa = StochasticWeightAveraging(swa_lrs=0.0001,
-                                    swa_epoch_start=100,
-                                    )
-    callbacks = [val_ckeckpoint, lr_monitor, early_stopping, swa, RichModelSummary()] #, DeviceStatsMonitor()
-    profiler = PyTorchProfiler()
-    trainer = L.Trainer(enable_checkpointing=True, max_epochs=600, accelerator="gpu", callbacks=callbacks, logger=logger)
-    trainer.fit(model)
+    early_stopping = EarlyStopping(monitor="val_loss",patience=40)
+    swa = StochasticWeightAveraging(swa_lrs=1e-8,annealing_epochs=40, swa_epoch_start=220,)
+    accumulator = GradientAccumulationScheduler(scheduling={0: 128, 12: 64, 16: 32, 24: 16, 32: 8, 40: 4, 48: 1})
+    callbacks = [lr_monitor, early_stopping, val_ckeckpoint, swa, accumulator]
+    trainer = L.Trainer(enable_checkpointing=True, max_epochs=config["epochs"],
+                      callbacks=callbacks, logger=logger, gradient_clip_val=0.5) #precision="16-mixed", 
+
+    trainer.fit(model, datamodule=dataMod)
+
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    args = parser.parse_args()
+    main(args)

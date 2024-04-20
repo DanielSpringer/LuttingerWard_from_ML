@@ -15,7 +15,7 @@ def dtype_str_to_type(dtype_str: str):
     else:
         raise ValueError("unkown dtype: " + dtype_str)
 
-class AE_Dataset(Dataset):
+class FC_Dataset(Dataset):
     """
     Placeholder for now. 
     We may need this for large datasets or custom transformations/loss functions.
@@ -24,6 +24,7 @@ class AE_Dataset(Dataset):
         self.x = x.clone().detach().to(dtype=dtype_default)
         self.y = y.clone().detach().to(dtype=dtype_default)
         self.ylen = y.shape[1] // 2
+        
 
     def __len__(self) -> int:
         return len(self.x)
@@ -46,7 +47,7 @@ class AE_Dataset(Dataset):
         return x_norm, y_norm
     
 
-class DataMod_AE(L.LightningDataModule):
+class DataMod_FC(L.LightningDataModule):
     def __init__(self, config):
         super().__init__()
 
@@ -63,13 +64,16 @@ class DataMod_AE(L.LightningDataModule):
         """
         with h5py.File(self.data, "r") as hf:
             x = hf["Set1/GImp"][:]
-            #y = hf["Set1/GImp"][:]
+            y = hf["Set1/GImp"][:]
+            ndens = hf["Set1/dens"][:]
         x = np.concatenate((x.real, x.imag), axis=1)
-        y = copy.deepcopy(x)
+        y = np.concatenate((y.real, y.imag), axis=1)
+        #x = np.c_[ndens, x]
         x = torch.tensor(x, dtype=self.dtype)
         y = torch.tensor(y, dtype=self.dtype)
 
-        self.train_dataset = AE_Dataset(x, y, self.dtype)
+        self.train_dataset = FC_Dataset(x, y, self.dtype)
+
         self.train_set_size = int(len(self.train_dataset) * 0.8)
         self.val_set_size = len(self.train_dataset) - self.train_set_size
 
