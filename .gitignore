@@ -2,4 +2,5 @@ dist
 lightning_logs
 saves
 slurm
-.pdf
+*.pdf
+*.csv

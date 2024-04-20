@@ -30,7 +30,7 @@ def main(args):
     dataMod = DataMod_AE(config)
 
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    logger = TensorBoardLogger("lightning_logs", name="VAE_Linear")
+    logger = TensorBoardLogger("lightning_logs", name=config['MODEL_NAME'])
     val_ckeckpoint = ModelCheckpoint( # saved in `trainer.default_root_dir`/`logger.version`/`checkpoint_callback.dirpath`
             filename="{epoch}-{step}-{val_loss:.8f}",
             monitor="val_loss",

@@ -173,8 +173,8 @@ class AE_FC_01(L.LightningModule):
 
         loss = G_reconstr + SE_reconstr
         self.log("train_loss", loss, prog_bar=False)
-        self.log("G_reconstr", G_reconstr, prog_bar=False)
-        self.log("SE_reconstr", SE_reconstr, prog_bar=False)
+        self.log("train_G_reconstr", G_reconstr, prog_bar=False)
+        self.log("train_SE_reconstr", SE_reconstr, prog_bar=False)
         return loss
 
 
