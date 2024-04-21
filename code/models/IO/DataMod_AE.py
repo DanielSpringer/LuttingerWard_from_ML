@@ -66,6 +66,9 @@ class DataMod_AE(L.LightningDataModule):
             #y = hf["Set1/GImp"][:]
         x = np.concatenate((x.real, x.imag), axis=1)
         y = copy.deepcopy(x)
+        p = np.random.RandomState(seed=0).permutation(x.shape[0])
+        x = x[p,:]
+        y = y[p,:]
         x = torch.tensor(x, dtype=self.dtype)
         y = torch.tensor(y, dtype=self.dtype)
 

@@ -3,14 +3,14 @@
         "MODEL_NAME": "AE_FC_scale_01",
         "MODEL_WRAPER": "model_wraper_ae",
         "PATH_TRAIN": "D:/data_batch2_nPrune.hdf5",
-        "dtype": "float64",
+        "dtype": "float32",
         "seed": 12345,
 
         "optimizer": "Adam",
         "batch_size": 64,
         "val_batch_size": 4,
         "train_val_split": 0.9,
-        
+
         "learning_rate": 0.001,
         "weight_decay": 0.0,
         "epochs": 300,
@@ -29,8 +29,8 @@
         "in_dim": 200,
         "out_dim": 200,
         "latent_dim": 14,
-        "AE_layers": 2,
-        "FC_layers": 6,
+        "AE_layers": 1,
+        "FC_layers": 0,
 
         "device_type": "gpu",
         "devices": 1,

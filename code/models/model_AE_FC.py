@@ -4,6 +4,7 @@ import pytorch_lightning as L
 import numpy as np
 from utils.LossFunctions import *
 from utils.misc import *
+import matplotlib.pyplot as plt
 
 #TODO: abstract encoding/docing/G_to_Sigma parts away. Define this model to consist of 3 models.
 
@@ -116,6 +117,8 @@ class AE_FC_01(L.LightningModule):
         self.activation = activation_str_to_layer(self.hparams['activation'])
         self.reconstr_loss_f = loss_str_to_layer(self.hparams['loss'])
 
+        self.worst_losses_ids = np.zeros(2,dtype=int)  # track the worst 3 example indices
+        self.worst_losses_data  = [None, None]           # track the worst 3 example losses
         print("G:")
         self.G_encoder  = LinEncoder(hparams['AE_layers'], hparams['in_dim'], hparams['latent_dim'], 
                                      self.activation, hparams['dropout_in'], hparams['dropout'], 
@@ -170,9 +173,9 @@ class AE_FC_01(L.LightningModule):
         SE_reconstr = self.reconstr_loss_f(SE_in, SE_hat)
 
         loss = G_reconstr/torch.clamp(-10*torch.log(SE_reconstr), min=1) + SE_reconstr
-        self.log("train_loss", loss, prog_bar=False)
-        self.log("train_G_reconstr", G_reconstr, prog_bar=False)
-        self.log("train_SE_reconstr", SE_reconstr, prog_bar=False)
+        self.log("train/loss", loss, prog_bar=False)
+        self.log("train/G_reconstr", G_reconstr, prog_bar=False)
+        self.log("train/SE_reconstr", SE_reconstr, prog_bar=False)
         return loss
 
 
@@ -180,9 +183,40 @@ class AE_FC_01(L.LightningModule):
         G_in, SE_in = batch
         G_latent, SE_latent, SE_hat = self(G_in)
         loss = self.reconstr_loss_f(SE_in, SE_hat)
-        self.log("val_loss", loss, prog_bar=True)
-        return loss
+        wi = np.argmin(self.worst_losses)
+        if loss > wi:
+            self.worst_losses_data[wi] = (G_in, SE_hat, SE_in)
+            self.worst_losses[wi] = loss
 
+        self.log("val/loss", loss, prog_bar=True)
+        return loss
+    
+    def on_validation_epoch_start(self):
+        # reset worst examples
+        self.worst_losses_data = [None, None]
+        self.worst_losses    = np.zeros(2)
+
+    def on_validation_epoch_end(self):
+        # plot worst 2 
+        for ii,batch_i in enumerate(self.worst_losses_data):
+            if batch_i is not None:
+                G_in, S_hat, S_in = batch_i
+                batch_len = S_in.size(0)
+                fig, axs = plt.subplots(batch_len,3, figsize=(10,6))
+                for i in range(batch_len):
+                    axs[i,0].plot(G_in[i].cpu())
+                    axs[i,1].plot(S_in[i].cpu(), label="ground truth")
+                    axs[i,1].plot(S_hat[i].cpu(), label="prediction")
+                    axs[i,1].legend()
+                    axs[i,2].plot(np.abs(S_hat[i].cpu() - S_in[i].cpu()), label="Log Diff")
+                    axs[i,0].set_xlabel("nu")
+                    axs[i,0].set_ylabel("G_in")
+                    axs[i,1].set_xlabel("nu")
+                    axs[i,1].set_ylabel("Sigma_in")
+                    axs[i,2].set_xlabel("nu")
+                    axs[i,2].set_ylabel("Delta Sigma")
+                    axs[i,2].set_yscale('log')
+                self.logger.experiment[f"val/worst_examples_{ii}"].append(fig)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(params=self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['weight_decay'])

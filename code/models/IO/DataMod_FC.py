@@ -53,10 +53,11 @@ class DataMod_FC(L.LightningDataModule):
 
         self.prepare_data_per_node = True
         self.train_batch_size = config['batch_size']
-        self.val_batch_size = config['batch_size']
-        self.test_batch_size = config['batch_size']
+        self.val_batch_size = config['val_batch_size'] if ('val_batch_size' in config) else config['batch_size']
+        self.test_batch_size = config['test_batch_size'] if ('test_batch_size' in config) else config['batch_size']
         self.data = config['PATH_TRAIN']
         self.dtype = dtype_str_to_type(config['dtype'])
+        self.train_val_split = config['train_val_split']
 
     def setup(self, stage: str):
         """
@@ -68,13 +69,16 @@ class DataMod_FC(L.LightningDataModule):
             ndens = hf["Set1/dens"][:]
         x = np.concatenate((x.real, x.imag), axis=1)
         y = np.concatenate((y.real, y.imag), axis=1)
+        p = np.random.RandomState(seed=0).permutation(x.shape[0])
+        x = x[p,:]
+        y = y[p,:]
         #x = np.c_[ndens, x]
         x = torch.tensor(x, dtype=self.dtype)
         y = torch.tensor(y, dtype=self.dtype)
 
         self.train_dataset = FC_Dataset(x, y, self.dtype)
 
-        self.train_set_size = int(len(self.train_dataset) * 0.8)
+        self.train_set_size = int(len(self.train_dataset) * self.train_val_split)
         self.val_set_size = len(self.train_dataset) - self.train_set_size
 
         self.train_dataset, self.val_dataset = random_split(self.train_dataset, [self.train_set_size, self.val_set_size])
@@ -84,7 +88,7 @@ class DataMod_FC(L.LightningDataModule):
         return DataLoader(self.train_dataset, batch_size=self.train_batch_size, num_workers=8, persistent_workers=True, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.train_batch_size, num_workers=8, persistent_workers=True, shuffle=False)
+        return DataLoader(self.val_dataset, batch_size=self.val_batch_size, num_workers=8, persistent_workers=True, shuffle=False)
     
     def test_dataloader(self):
         raise NotImplementedError("Define standard for data generation from jED.jl and create test data there!")
