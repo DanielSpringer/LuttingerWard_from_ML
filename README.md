@@ -2,6 +2,13 @@
 
 # Setup
 
+Install [pytorch](https://pytorch.org/get-started/locally/) and pytorch lightning
+Dependencies (TODO complete list)
+```
+conda create -name LW_ML
+conda install -c conda-forge neptune-client
+```
+
 For deployment use
 ```
 python -m build

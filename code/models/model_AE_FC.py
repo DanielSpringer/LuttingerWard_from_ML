@@ -116,8 +116,6 @@ class AE_FC_01(L.LightningModule):
         self.activation = activation_str_to_layer(self.hparams['activation'])
         self.reconstr_loss_f = loss_str_to_layer(self.hparams['loss'])
 
-        self.fc_net  = []
-
         print("G:")
         self.G_encoder  = LinEncoder(hparams['AE_layers'], hparams['in_dim'], hparams['latent_dim'], 
                                      self.activation, hparams['dropout_in'], hparams['dropout'], 
@@ -142,7 +140,7 @@ class AE_FC_01(L.LightningModule):
                                         self.activation, nn.Identity(), self.dropout, self.hparams['with_batchnorm'],
                                         last_layer = (i == self.hparams['latent_layers'] - 1), first_layer = False
                                         ))
-        self.fc_net     = nn.Sequential(*bl_fc_net)
+        self.fc_net     = nn.Sequential(*bl_fc_net) if self.hparams['latent_layers'] > 0 else nn.Sequential(nn.Identity())
 
         for layer in self.fc_net:
             if isinstance(layer, nn.Linear):
@@ -171,7 +169,7 @@ class AE_FC_01(L.LightningModule):
         G_reconstr = self.reconstr_loss_f(G_in, G_hat)
         SE_reconstr = self.reconstr_loss_f(SE_in, SE_hat)
 
-        loss = G_reconstr + SE_reconstr
+        loss = G_reconstr/torch.clamp(-10*torch.log(SE_reconstr), min=1) + SE_reconstr
         self.log("train_loss", loss, prog_bar=False)
         self.log("train_G_reconstr", G_reconstr, prog_bar=False)
         self.log("train_SE_reconstr", SE_reconstr, prog_bar=False)
@@ -187,7 +185,7 @@ class AE_FC_01(L.LightningModule):
 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(params=self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['weight_decay'])
+        optimizer = torch.optim.Adam(params=self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['weight_decay'])
         return optimizer
     
     def load_model_state(self, PATH):

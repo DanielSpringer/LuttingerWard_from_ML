@@ -1,6 +1,10 @@
 dist
 lightning_logs
 saves
-slurm
+
 *.pdf
 *.csv
+slurm
+.neptune
+events.*
+TB_logs
