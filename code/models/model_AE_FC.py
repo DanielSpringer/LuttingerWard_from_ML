@@ -116,8 +116,10 @@ class AE_FC_01(L.LightningModule):
         self.dropout = nn.Dropout(self.hparams['dropout']) if self.hparams['dropout'] > 0  else nn.Identity()
         self.activation = activation_str_to_layer(self.hparams['activation'])
         self.reconstr_loss_f = loss_str_to_layer(self.hparams['loss'])
+        self.lr = self.hparams['lr']
 
-        self.worst_losses_ids = np.zeros(2,dtype=int)  # track the worst 3 example indices
+        self.plot_worst_examples = False
+        self.worst_losses_ids = np.zeros(2,dtype=int)    # track the worst 3 example indices
         self.worst_losses_data  = [None, None]           # track the worst 3 example losses
         print("G:")
         self.G_encoder  = LinEncoder(hparams['AE_layers'], hparams['in_dim'], hparams['latent_dim'], 
@@ -183,10 +185,17 @@ class AE_FC_01(L.LightningModule):
         G_in, SE_in = batch
         G_latent, SE_latent, SE_hat = self(G_in)
         loss = self.reconstr_loss_f(SE_in, SE_hat)
-        wi = np.argmin(self.worst_losses)
-        if loss > wi:
-            self.worst_losses_data[wi] = (G_in, SE_hat, SE_in)
-            self.worst_losses[wi] = loss
+        if self.plot_worst_examples:
+            wi = np.argmin(self.worst_losses)
+            if loss > wi:
+                self.worst_losses_data[wi] = (G_in, SE_hat, SE_in)
+                self.worst_losses[wi] = loss
+        else: # just save the first two
+            if batch_idx == 0:
+                self.worst_losses_data[0] = (G_in[0:2,:], SE_hat[0:2,:], SE_in[0:2,:])
+                self.worst_losses[0] = loss
+                self.worst_losses_data[1] = (G_in[2:4,:], SE_hat[2:4,:], SE_in[2:4,:])
+                self.worst_losses[1] = loss
 
         self.log("val/loss", loss, prog_bar=True)
         return loss
@@ -198,17 +207,19 @@ class AE_FC_01(L.LightningModule):
 
     def on_validation_epoch_end(self):
         # plot worst 2 
+        
         for ii,batch_i in enumerate(self.worst_losses_data):
             if batch_i is not None:
                 G_in, S_hat, S_in = batch_i
                 batch_len = S_in.size(0)
-                fig, axs = plt.subplots(batch_len,3, figsize=(10,6))
+                fig, axs = plt.subplots(batch_len,3, figsize=(24,12))
                 for i in range(batch_len):
-                    axs[i,0].plot(G_in[i].cpu())
-                    axs[i,1].plot(S_in[i].cpu(), label="ground truth")
-                    axs[i,1].plot(S_hat[i].cpu(), label="prediction")
+                    axs[i,0].plot(G_in[i,:].cpu(), linewidth=2)
+                    axs[i,1].plot(S_in[i,:].cpu(), label="ground truth", linewidth=2)
+                    axs[i,1].plot(S_hat[i,:].cpu(), label="prediction", linewidth=2)
+                    axs[i,0].set_title(f"Batch {ii}")
                     axs[i,1].legend()
-                    axs[i,2].plot(np.abs(S_hat[i].cpu() - S_in[i].cpu()), label="Log Diff")
+                    axs[i,2].plot(np.abs(S_hat[i,:].cpu() - S_in[i,:].cpu()), label="Log Diff")
                     axs[i,0].set_xlabel("nu")
                     axs[i,0].set_ylabel("G_in")
                     axs[i,1].set_xlabel("nu")
@@ -219,8 +230,22 @@ class AE_FC_01(L.LightningModule):
                 self.logger.experiment[f"val/worst_examples_{ii}"].append(fig)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(params=self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['weight_decay'])
-        return optimizer
+        if self.hparams["optimizer"] == "SGD":
+            optimizer = torch.optim.SGD(self.parameters(), lr=self.lr,
+                                    momentum=self.hparams["SGD_momentum"],
+                                    weight_decay=self.hparams["SGD_weight_decay"],
+                                    dampening=self.hparams["SGD_dampening"],
+                                    nesterov=self.hparams["SGD_nesterov"])
+        elif self.hparams["optimizer"] == "AdamW":
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        elif self.hparams["optimizer"] == "Adam":
+            optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        else:
+            raise ValueError("unkown optimzer: " + self.hparams["optimzer"])
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=15, verbose=True)
+        return {"optimizer": optimizer, 
+                "lr_scheduler": scheduler, 
+                "monitor": "val/loss"}
     
     def load_model_state(self, PATH):
         checkpoint = torch.load(PATH, map_location='cuda:0')

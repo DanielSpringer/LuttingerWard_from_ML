@@ -8,9 +8,9 @@
 
         "optimizer": "Adam",
         "batch_size": 64,
-        "val_batch_size": 4,
-        "train_val_split": 0.9,
-        
+        "val_batch_size": 512,
+        "train_val_split": 0.8,
+
         "learning_rate": 0.001,
         "weight_decay": 0.0,
         "epochs": 300,
