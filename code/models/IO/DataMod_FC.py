@@ -65,7 +65,7 @@ class DataMod_FC(L.LightningDataModule):
         """
         with h5py.File(self.data, "r") as hf:
             x = hf["Set1/GImp"][:]
-            y = hf["Set1/GImp"][:]
+            y = hf["Set1/SImp"][:]
             ndens = hf["Set1/dens"][:]
         x = np.concatenate((x.real, x.imag), axis=1)
         y = np.concatenate((y.real, y.imag), axis=1)

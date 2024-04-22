@@ -185,17 +185,17 @@ class AE_FC_01(L.LightningModule):
         G_in, SE_in = batch
         G_latent, SE_latent, SE_hat = self(G_in)
         loss = self.reconstr_loss_f(SE_in, SE_hat)
-        if self.plot_worst_examples:
-            wi = np.argmin(self.worst_losses)
-            if loss > wi:
-                self.worst_losses_data[wi] = (G_in, SE_hat, SE_in)
-                self.worst_losses[wi] = loss
-        else: # just save the first two
-            if batch_idx == 0:
-                self.worst_losses_data[0] = (G_in[0:2,:], SE_hat[0:2,:], SE_in[0:2,:])
-                self.worst_losses[0] = loss
-                self.worst_losses_data[1] = (G_in[2:4,:], SE_hat[2:4,:], SE_in[2:4,:])
-                self.worst_losses[1] = loss
+        #if self.plot_worst_examples:
+        #    wi = np.argmin(self.worst_losses)
+        #    if loss > wi:
+        #        self.worst_losses_data[wi] = (G_in, SE_hat, SE_in)
+        #        self.worst_losses[wi] = loss
+        #else: # just save the first two
+        #    if batch_idx == 0:
+        #        self.worst_losses_data[0] = (G_in[0:2,:], SE_hat[0:2,:], SE_in[0:2,:])
+        #        self.worst_losses[0] = loss
+        #        self.worst_losses_data[1] = (G_in[2:4,:], SE_hat[2:4,:], SE_in[2:4,:])
+        #        self.worst_losses[1] = loss
 
         self.log("val/loss", loss, prog_bar=True)
         return loss
@@ -207,27 +207,27 @@ class AE_FC_01(L.LightningModule):
 
     def on_validation_epoch_end(self):
         # plot worst 2 
-        
-        for ii,batch_i in enumerate(self.worst_losses_data):
-            if batch_i is not None:
-                G_in, S_hat, S_in = batch_i
-                batch_len = S_in.size(0)
-                fig, axs = plt.subplots(batch_len,3, figsize=(24,12))
-                for i in range(batch_len):
-                    axs[i,0].plot(G_in[i,:].cpu(), linewidth=2)
-                    axs[i,1].plot(S_in[i,:].cpu(), label="ground truth", linewidth=2)
-                    axs[i,1].plot(S_hat[i,:].cpu(), label="prediction", linewidth=2)
-                    axs[i,0].set_title(f"Batch {ii}")
-                    axs[i,1].legend()
-                    axs[i,2].plot(np.abs(S_hat[i,:].cpu() - S_in[i,:].cpu()), label="Log Diff")
-                    axs[i,0].set_xlabel("nu")
-                    axs[i,0].set_ylabel("G_in")
-                    axs[i,1].set_xlabel("nu")
-                    axs[i,1].set_ylabel("Sigma_in")
-                    axs[i,2].set_xlabel("nu")
-                    axs[i,2].set_ylabel("Delta Sigma")
-                    axs[i,2].set_yscale('log')
-                self.logger.experiment[f"val/worst_examples_{ii}"].append(fig)
+        if False:
+            for ii,batch_i in enumerate(self.worst_losses_data):
+                if batch_i is not None:
+                    G_in, S_hat, S_in = batch_i
+                    batch_len = S_in.size(0)
+                    fig, axs = plt.subplots(batch_len,3, figsize=(24,12))
+                    for i in range(batch_len):
+                        axs[i,0].plot(G_in[i,:].cpu(), linewidth=2)
+                        axs[i,1].plot(S_in[i,:].cpu(), label="ground truth", linewidth=2)
+                        axs[i,1].plot(S_hat[i,:].cpu(), label="prediction", linewidth=2)
+                        axs[i,0].set_title(f"Batch {ii}")
+                        axs[i,1].legend()
+                        axs[i,2].plot(np.abs(S_hat[i,:].cpu() - S_in[i,:].cpu()), label="Log Diff")
+                        axs[i,0].set_xlabel("nu")
+                        axs[i,0].set_ylabel("G_in")
+                        axs[i,1].set_xlabel("nu")
+                        axs[i,1].set_ylabel("Sigma_in")
+                        axs[i,2].set_xlabel("nu")
+                        axs[i,2].set_ylabel("Delta Sigma")
+                        axs[i,2].set_yscale('log')
+                    self.logger.experiment[f"val/worst_examples_{ii}"].append(fig)
 
     def configure_optimizers(self):
         if self.hparams["optimizer"] == "SGD":
