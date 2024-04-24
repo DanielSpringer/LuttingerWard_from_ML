@@ -14,8 +14,7 @@
         "learning_rate": 0.001,
         "weight_decay": 0.0,
         "epochs": 300,
-
-
+        
         "SGD_momentum": 0.9,
         "SGD_dampening": 0.0,
         "SGD_nesterov": false,

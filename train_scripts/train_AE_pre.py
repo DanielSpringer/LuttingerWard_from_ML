@@ -81,15 +81,15 @@ def main(args):
 
 
 def main(args):
-    for mode in ['gf']:#,'se']:
+    for mode in ['gf','se']:
         if mode == 'gf':
             config_path = join(dirname(__file__),'../configs/confmod_AE_GF.json')
         else:
             config_path = join(dirname(__file__),'../configs/confmod_AE_SE.json')
         config = json.load(open(config_path))
         modelN = neptune.init_model(key=f"AE{mode.upper()}",name=config['MODEL_NAME'],project="stobbe.julian/LW-AEpFC")
-        for AE_layers in [1]:#,2,3]:
-            for laten_dims in [12]:#,13,14,15,16]:
+        for AE_layers in [1,2,3]:
+            for laten_dims in [12,13,14,15,16]:
                 model_version = neptune.init_model_version(model=f"LWAEP-AE{mode.upper()}",name=f"L{AE_layers}LD{laten_dims}",project="stobbe.julian/LW-AEpFC")
 
                 torch.manual_seed(config['seed'])
@@ -119,9 +119,9 @@ def main(args):
                         )
                 early_stopping = EarlyStopping(monitor="val/loss",patience=40)
                 swa = StochasticWeightAveraging(swa_lrs=1e-8,annealing_epochs=40, swa_epoch_start=220,)
-                accumulator = GradientAccumulationScheduler(scheduling={0: 1280, 12: 64, 16: 32, 24: 16, 32: 8, 40: 4, 48: 1})
+                accumulator = GradientAccumulationScheduler(scheduling={0: 512, 8: 128, 16: 64, 24: 32, 32: 16, 40: 8, 48: 4, 56: 1})
                 callbacks = [lr_monitor, early_stopping, val_ckeckpoint, swa, accumulator]
-                trainer = L.Trainer(enable_checkpointing=True, max_epochs=1,#config["epochs"],
+                trainer = L.Trainer(enable_checkpointing=True, max_epochs=config["epochs"],
                                 callbacks=callbacks, logger=neptune_logger, gradient_clip_val=0.5) #precision="16-mixed", 
                 
                 trainer.fit(model, datamodule=dataMod)

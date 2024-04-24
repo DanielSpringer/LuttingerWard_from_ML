@@ -39,6 +39,7 @@ class AutoEncoder_01(L.LightningModule):
         self.dropout = nn.Dropout(self.hparams['dropout']) if self.hparams['dropout'] > 0  else nn.Identity()
         self.activation = activation_str_to_layer(self.hparams['activation'])
         self.loss = loss_str_to_layer(self.hparams['loss'])
+        self.lr = self.hparams['lr']
 
         self.encoder = []
         self.decoder = []
@@ -93,20 +94,35 @@ class AutoEncoder_01(L.LightningModule):
         x, y = batch
         pred = self.forward(x)
         loss = self.loss(pred, x)
-        self.log("train_loss", loss, prog_bar=False)
+        self.log("train/loss", loss, prog_bar=False)
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         x, y = batch
         pred = self.forward(x)
         loss = self.loss(pred, x)
-        self.log("val_loss", loss, prog_bar=True)
+        self.log("val/loss", loss, prog_bar=True)
         return loss
 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(params=self.parameters(), lr=self.hparams['lr'], weight_decay=self.hparams['weight_decay'])
-        return optimizer
+        if self.hparams["optimizer"] == "SGD":
+            optimizer = torch.optim.SGD(self.parameters(), lr=self.lr,
+                                    momentum=self.hparams["SGD_momentum"],
+                                    weight_decay=self.hparams["SGD_weight_decay"],
+                                    dampening=self.hparams["SGD_dampening"],
+                                    nesterov=self.hparams["SGD_nesterov"])
+        elif self.hparams["optimizer"] == "AdamW":
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        elif self.hparams["optimizer"] == "Adam":
+            optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        else:
+            raise ValueError("unkown optimzer: " + self.hparams["optimzer"])
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=8, threshold=1e-3,
+                                                               threshold_mode='rel', verbose=True)
+        return {"optimizer": optimizer, 
+                "lr_scheduler": scheduler, 
+                "monitor": "val/loss"}
     
     def load_model_state(self, PATH):
         checkpoint = torch.load(PATH, map_location='cuda:0')
