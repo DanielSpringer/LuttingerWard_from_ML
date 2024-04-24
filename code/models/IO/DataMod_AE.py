@@ -56,13 +56,19 @@ class DataMod_AE(L.LightningDataModule):
         self.test_batch_size = config['batch_size']
         self.data = config['PATH_TRAIN']
         self.dtype = dtype_str_to_type(config['dtype'])
+        self.mode = config['mode']
 
     def setup(self, stage: str):
         """
         Download and transform datasets. 
         """
         with h5py.File(self.data, "r") as hf:
-            x = hf["Set1/GImp"][:]
+            if self.mode == 'gf':
+                x = hf["Set1/GImp"][:]
+            elif self.mode == 'se':
+                x = hf["Set1/SImp"][:]
+            else:
+                raise RuntimeError("mode " + self.mode + "not found")
             #y = hf["Set1/GImp"][:]
         x = np.concatenate((x.real, x.imag), axis=1)
         y = copy.deepcopy(x)

@@ -1,0 +1,38 @@
+{
+    
+        "MODEL_NAME": "auto_encoder",
+        "MODEL_WRAPER": "model_wraper_ae",
+        "PATH_TRAIN": "D:/data_batch2_nPrune.hdf5",
+        "DATA_LOADER": "Dataset_ae_split",
+        "dtype": "float64",
+        "seed": 12345,
+
+        "mode": "se",
+
+        "optimizer": "Adam",
+        "batch_size": 64,
+        "val_batch_size": 512,
+        "learning_rate": 1e-3,
+        "weight_decay": 0.0,
+        "epochs": 300,
+
+
+        "SGD_momentum": 0.9,
+        "SGD_dampening": 0.0,
+        "SGD_nesterov": false,
+
+        "dropout_in": 0,
+        "dropout": 0,
+        "activation": "ReLU",
+        "with_batchnorm": false,
+        "loss": "MSE",
+
+        "in_dim": 200,
+        "latent_dim": 14,
+        "n_layers": 1,
+
+        "device_type": "gpu",
+        "devices": 1,
+        "num_nodes": 1
+    
+}

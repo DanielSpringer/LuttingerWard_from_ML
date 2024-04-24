@@ -242,7 +242,8 @@ class AE_FC_01(L.LightningModule):
             optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         else:
             raise ValueError("unkown optimzer: " + self.hparams["optimzer"])
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=15, verbose=True)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.1, patience=8, threshold=1e-3,
+                                                               threshold_mode='rel', verbose=True)
         return {"optimizer": optimizer, 
                 "lr_scheduler": scheduler, 
                 "monitor": "val/loss"}

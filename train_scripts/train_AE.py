@@ -46,6 +46,8 @@ def main(args):
                       callbacks=callbacks, logger=logger, gradient_clip_val=0.5) #precision="16-mixed", 
 
     trainer.fit(model, datamodule=dataMod)
+    neptune_logger.log_model_summary(model=model, max_depth=-1)
+    neptune_logger._run_instance.stop()
 
 if __name__ == '__main__':
     parser = ArgumentParser()
