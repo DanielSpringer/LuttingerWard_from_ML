@@ -1,6 +1,7 @@
 from code.models.model_AE import *
 from code.models.model_FC import *
 from code.models.GNN import *
+
 import torch 
 from torch import nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
