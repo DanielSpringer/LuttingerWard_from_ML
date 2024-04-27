@@ -141,16 +141,38 @@ class Dataset_convergence_split(Dataset):
     '''
     def __init__(self, config, **kwargs):
         sample_idx = kwargs["target_sample"]
+        amp = config["convergence_noise"]
+        
+        ### Using noise to produce a gradient
+        # PATH = config["PATH_TRAIN"]
+        # f = h5py.File(PATH, 'r')
+        # data_in = np.array(f[kwargs["data_type"]]["data"][sample_idx,0,:])[None]
+        # # data_target = np.array(f[kwargs["data_type"]]["data"][sample_idx,1,:])[None]
+        # self.data_target = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
+        # self.noise = amp * (np.random.rand(*data_in.shape)-0.5)*2 # in[-1,1]
+        # data_in = data_in + self.noise
+        # self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
+        # g0 = np.array(f[kwargs["data_type"]]["data"][sample_idx,2,:])[None]
+        # self.g0 = torch.cat([torch.tensor(g0.real, dtype=torch.float32), torch.tensor(g0.imag, dtype=torch.float32)], axis=1)
+
+        ### Using more validation samples with half of them the actual target to produce a gradient
         PATH = config["PATH_TRAIN"]
         f = h5py.File(PATH, 'r')
-        data_in = np.array(f[kwargs["data_type"]]["data"][sample_idx,0,:])[None]
-        data_target = np.array(f[kwargs["data_type"]]["data"][sample_idx,1,:])[None]
+        data_in = []
+        g0 = []
+        for n in range(0,sample_idx.shape[0]):
+            data_in.append(f[kwargs["data_type"]]["data"][n,0,:])
+            g0.append(f[kwargs["data_type"]]["data"][n,2,:])
+        data_in = torch.tensor(data_in)#[None] # BATCH DIMENSION
+        g0 = torch.tensor(g0)#[None] # BATCH DIMENSION
+        # data_target = np.array(f[kwargs["data_type"]]["data"][sample_idx,1,:])[None]
+        self.data_target = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
+        # self.noise = amp * (np.random.rand(*data_in.shape)-0.5)*2 # in[-1,1]
+        # data_in = data_in + self.noise
         self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
-        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
-
-        g0 = np.array(f[kwargs["data_type"]]["data"][sample_idx,2,:])[None]
         self.g0 = torch.cat([torch.tensor(g0.real, dtype=torch.float32), torch.tensor(g0.imag, dtype=torch.float32)], axis=1)
-
+        
+        
     def __len__(self):
         return self.data_in.shape[0]
 
