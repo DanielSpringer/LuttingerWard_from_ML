@@ -1,7 +1,9 @@
 #%%
+import sys
+sys.path.append('/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/')
 import torch
-import code.models.models as models
-import wrapers
+# from models import models as models
+# from wrappers import wrapers
 from torch.utils.data import DataLoader
 import load_data
 import datetime
@@ -15,14 +17,14 @@ import os
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
     ### TODO 
-    MODEL_NAME = "INJECTION_AUTO_ENCODER_1"
-    config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
+    MODEL_NAME = "CONVERGENCE_AUTO_ENCODER_1"
+    config = json.load(open('../configs/confmod_auto_encoder.json'))[MODEL_NAME]
     # MODEL_NAME = "AUTO_ENCODER_1"
     # config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
 
     ''' Dataloading '''
     ### > Separate training and validation HDF5 files 
-    ld = __import__("load_data")
+    ld = __import__("load_data", fromlist=['object'])
     train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "train", target_sample = None)
     validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
@@ -36,10 +38,14 @@ def train():
 
 
     ''' Model setup '''
-    wrapers = __import__("wrapers")
+    wrapers = __import__("wrappers.wrapers", fromlist=['object'])#.wrapers
+    # import sys, inspect
+    # for name, clazz in inspect.getmembers(wrapers):
+    #     print(name)
+    #     if inspect.isclass(clazz):
+    #         print(clazz)
     model = getattr(wrapers, config["MODEL_WRAPER"])(config)
-
-
+    
     ''' Model loading from save file '''
     if config["continue"] == True:
         SAVEPATH = config["SAVEPATH"]
@@ -59,11 +65,11 @@ def train():
 
     # '''Define (pytorch_lightning) Trainer '''
     # ### > SLURM Training
-    trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger)
+    # trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger)
     # ### > Jupyter Notebook Training
     # trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
     # ### > Jupyter Notebook CPU Training
-    # trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
+    trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
     
     ''' Train '''
     trainer.fit(model, train_dataloader, validation_dataloader)
@@ -82,3 +88,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+# %%

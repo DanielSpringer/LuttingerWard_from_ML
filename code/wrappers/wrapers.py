@@ -2,17 +2,16 @@ import torch
 from torch import nn
 from torch_geometric.nn import MessagePassing, global_mean_pool
 import json
-# import lightning as L
 import pytorch_lightning as L
+# from models import models as models
+# from wrapper_AE import *
 
-from wrapper_AE import *
 
-
-class model_wraper_gnn(pl.LightningModule):
+class model_wraper_gnn(L.LightningModule):
 
     def __init__(self, config):
         super().__init__()
-        module = __import__("models")
+        module = __import__("models.models", fromlist=['object'])
         self.model = getattr(module, config["MODEL_NAME"])(config)
         self.criterion_mse = nn.MSELoss()
         self.config = config
@@ -57,11 +56,11 @@ class model_wraper_gnn(pl.LightningModule):
 
 
 ### Model wrapers for 3-step convergence concept:
-class model_wraper_encgiv(pl.LightningModule):
+class model_wraper_encgiv(L.LightningModule):
     ''' First part of convergence model. Wraper to train actual auto-encoding, i.e. the input and target are identical. '''
     def __init__(self, config):
         super().__init__()
-        module = __import__("models")
+        module = __import__("models.models", fromlist=['object'])
         self.model = getattr(module, config["MODEL_NAME"])(config)
         self.criterion_mse = nn.MSELoss()
         self.config = config
@@ -96,7 +95,7 @@ class model_wraper_encgiv(pl.LightningModule):
         self.model.load_state_dict(checkpoint['state_dict'])
 
 
-class model_wraper_G0injection(pl.LightningModule):
+class model_wraper_G0injection(L.LightningModule):
     ''' Second part of convergence model. In this wraper an injection vector (encoding for g0) is passed to the model to be used (injected) in the model.
         This wraper does not update the g0 encoding network. 
     '''
@@ -107,11 +106,11 @@ class model_wraper_G0injection(pl.LightningModule):
         config_encoder = json.load(open(config["ENCODER_MODEL_SAVEPATH"]+'config.json'))
 
         # LW prediction model
-        module = __import__("models")
+        module = __import__("models.models", fromlist=['object'])
         self.model = getattr(module, config["MODEL_NAME"])(config)
 
         # Loading g0 encoder -> Different config for encoder. 
-        encoder_wraper = __import__("wrapers")
+        encoder_wraper = __import__("wrappers.wrapers", fromlist=['object'])
         self.encoder_model = getattr(encoder_wraper, config["ENCODER_MODEL_WRAPER"])(config_encoder)
         filename = config["ENCODER_MODEL_SAVEPATH"] + config["ENCODER_MODEL_SAVEFILE"]
         if torch.cuda.is_available() == False:
@@ -162,7 +161,7 @@ class model_wraper_G0injection(pl.LightningModule):
         self.model.load_state_dict(checkpoint['state_dict'])
 
 
-class model_wraper_convergence(pl.LightningModule):
+class model_wraper_convergence(L.LightningModule):
     ''' Third part of convergence model. In this wraper the . '''
     def __init__(self, config):
         super().__init__()
@@ -171,8 +170,8 @@ class model_wraper_convergence(pl.LightningModule):
         config_stativ_LW = json.load(open(config["INJECTION_MODEL_SAVEPATH"]+'config.json'))
         config_encoder = json.load(open(config["ENCODER_MODEL_SAVEPATH"]+'config.json'))
 
-        # module = __import__("models")
-        wraper = __import__("wrapers")
+        # module = __import__("models.models", fromlist=['object'])
+        wraper = __import__("wrappers.wrapers", fromlist=['object'])
 
         # Loading Encoder  
         self.encoder_model = getattr(wraper, config["ENCODER_MODEL_WRAPER"])(config_encoder)
