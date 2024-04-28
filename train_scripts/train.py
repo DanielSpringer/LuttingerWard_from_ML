@@ -1,6 +1,6 @@
 #%%
 import torch
-import models
+import code.models.models as models
 import wrapers
 from torch.utils.data import DataLoader
 import load_data
@@ -24,8 +24,8 @@ def train():
     ld = __import__("load_data")
     train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "train")
     validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
-    train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)
-    validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
+    train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
+    validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=False, num_workers=8, persistent_workers=True, pin_memory=True)
     ### > Single HDF5 file containing training and validation data 
     # data_set = load_data.Dataset_ae(config)
     # # train_set, validation_set, unused_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.3), int(data_set.__len__()*0.05), int(data_set.__len__()*0.65)], generator=torch.Generator().manual_seed(42))
