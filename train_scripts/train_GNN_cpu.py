@@ -1,5 +1,5 @@
 import torch
-import models
+import code.models.models as models
 from torch.utils.data import DataLoader
 import load_data
 import datetime

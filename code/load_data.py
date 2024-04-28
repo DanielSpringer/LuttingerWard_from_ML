@@ -33,7 +33,6 @@ class Dataset_baseline(Dataset):
 
 
 class Dataset_baseline_conv(Dataset):
-
     def __init__(self, config):
         PATH = config["PATH_TRAIN"]
         f = h5py.File(PATH, 'r')
@@ -54,7 +53,6 @@ class Dataset_baseline_conv(Dataset):
     
     
 class Dataset_ae(Dataset):
-
     def __init__(self, config):
         PATH = config["PATH_TRAIN"]
         f = h5py.File(PATH, 'r')
