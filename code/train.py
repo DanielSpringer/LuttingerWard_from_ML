@@ -14,15 +14,16 @@ import os
 
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
-    MODEL_NAME = "GNN_basis"
-    config = json.load(open('confmod_graph_neural_network.json'))[MODEL_NAME]
+    ### TODO 
+    MODEL_NAME = "INJECTION_AUTO_ENCODER_1"
+    config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
     # MODEL_NAME = "AUTO_ENCODER_1"
     # config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
 
     ''' Dataloading '''
     ### > Separate training and validation HDF5 files 
     ld = __import__("load_data")
-    train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "train")
+    train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "train", target_sample = None)
     validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)
     validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
@@ -44,7 +45,7 @@ def train():
         SAVEPATH = config["SAVEPATH"]
         checkpoint = torch.load(SAVEPATH)
         model.load_state_dict(checkpoint['state_dict'])
-        print(" >>> Loaded checkpotin")
+        print(" >>> Loaded checkpoint")
 
 
     ''' Logging and saving '''
