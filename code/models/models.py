@@ -1,6 +1,9 @@
-from code.models.model_AE import *
-from code.models.model_FC import *
-from code.models.GNN import *
+import sys
+sys.path.append('/home/daniel/Projects/RevMat/LuttingerWard_from_ML/')
+
+# from code.models.model_AE import *
+# from code.models.model_FC import *
+# from code.models.GNN import *
 
 import torch 
 from torch import nn
@@ -46,6 +49,46 @@ import pytorch_lightning as pl
 #     def forward(self, x):
 #         return self.decode(x)
 ### ARE THESE USED?
+
+class encoder(torch.nn.Module):
+    def __init__(self, config):
+        super(encoder, self).__init__()
+        self.config = config
+        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
+
+        self.embedding = nn.Sequential(
+            nn.Linear(config["in_dim"], config["in_dim"]),
+            nn.Linear(config["in_dim"], config["in_dim"]),
+            nn.Linear(config["in_dim"], config["in_dim"]),
+            nn.Linear(config["in_dim"], config["embedding_dim"])
+        )
+
+        self.encode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
+            torch.nn.BatchNorm1d(config["hidden1_dim"], eps=1e-05, momentum=0.1, affine=True, track_running_stats=True, device=None, dtype=None),
+            # nn.Dropout(p=0.5, inplace=False),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["hidden3_dim"]),
+            # nn.Dropout(p=0.3, inplace=False),
+            self.activation,
+            nn.Linear(config["hidden3_dim"], config["hidden4_dim"]),
+            torch.nn.BatchNorm1d(config["hidden4_dim"], eps=1e-05, momentum=0.1, affine=True, track_running_stats=True, device=None, dtype=None),
+            self.activation,
+            nn.Linear(config["hidden4_dim"], config["hidden5_dim"]),
+            # nn.Dropout(p=0.1, inplace=False),
+            self.activation,
+            nn.Linear(config["hidden5_dim"], config["encoder_dim"])
+            # self.activation
+        )
+
+    def forward(self, data_in):
+        x = self.embedding(data_in.float())
+        x = self.encode(x)
+        return x
+
 
 class auto_encoder(torch.nn.Module):
     def __init__(self, config):

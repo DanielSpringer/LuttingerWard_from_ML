@@ -1,6 +1,5 @@
 import torch 
 from torch import nn
-from torch_geometric.nn import MessagePassing, global_mean_pool
 import json
 import pytorch_lightning as L
 # from models import models as models
@@ -11,6 +10,7 @@ class model_wraper_gnn(L.LightningModule):
 
     def __init__(self, config):
         super().__init__()
+        from torch_geometric.nn import MessagePassing, global_mean_pool
         module = __import__("models.models", fromlist=['object'])
         self.model = getattr(module, config["MODEL_NAME"])(config)
         self.criterion_mse = nn.MSELoss()
@@ -260,3 +260,51 @@ class model_wraper_convergence(L.LightningModule):
     def load_model_state(self, PATH):
         checkpoint = torch.load(PATH, map_location='cuda:0')
         self.static_LW_model.load_state_dict(checkpoint['state_dict'])
+
+
+class model_wraper_generic(L.LightningModule):
+    ''' First part of convergence model. Wraper to train actual auto-encoding, i.e. the input and target are identical. '''
+    def __init__(self, config):
+        super().__init__()
+        module = __import__("models.models", fromlist=['object'])
+        self.model = getattr(module, config["MODEL_NAME"])(config)
+        self.criterion_mse = nn.MSELoss()
+        self.config = config
+        self.val_pred = []
+        self.val_loss = []
+        self.train_loss = 0
+        self.validation_loss = 0
+
+    def forward(self, batch: torch.Tensor):
+        return self.model(batch)
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        pred = self.forward(batch[0])
+        target = batch[1].float()
+        loss = self.criterion_mse(pred, target)
+        self.log('train_loss', loss.item())
+        self.train_loss = loss.item()
+        return loss
+
+    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        pred = self.forward(batch[0])
+        target = batch[1].float()
+        loss = self.criterion_mse(pred, target)
+        self.val_pred.append([target, pred])
+        # print(pred)
+        # print(target)
+        self.val_loss.append(loss)
+        self.log('val_loss', loss.item(), prog_bar=True)
+        self.validation_loss = loss.item()
+        # print(self.train_loss, self.validation_loss)
+        return loss
+
+    def configure_optimizers(self) -> dict:
+        optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.config['learning_rate'], weight_decay=self.config['weight_decay'])
+        return {"optimizer": optimizer}
+    
+    def load_model_state(self, PATH):
+        checkpoint = torch.load(PATH, map_location='cuda:0')
+        self.model.load_state_dict(checkpoint['state_dict'])
+
+
