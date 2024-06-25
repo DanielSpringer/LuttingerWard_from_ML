@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.plugins.environments import LightningEnvironment
 import json
 import os
-
+import numpy as np
 
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
@@ -24,11 +24,17 @@ def train():
 
     ''' Dataloading '''
     ### > Separate training and validation HDF5 files 
+    rand_samples = torch.randint(0,1000,(100,), dtype=int)
+    sample_idxs = torch.ones(100, dtype=int) * 941
+    sample_idx = torch.cat([sample_idxs, rand_samples], axis=0)
+    sample_idx, _ = torch.sort(sample_idx)
+
     ld = __import__("load_data", fromlist=['object'])
-    train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "train", target_sample = None)
-    validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
+    train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid", target_sample = sample_idx)
+    # validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
-    validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=False, num_workers=8, persistent_workers=True, pin_memory=True)
+    # validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=False, num_workers=8, persistent_workers=True, pin_memory=True)
+    
     ### > Single HDF5 file containing training and validation data 
     # data_set = load_data.Dataset_ae(config)
     # # train_set, validation_set, unused_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.3), int(data_set.__len__()*0.05), int(data_set.__len__()*0.65)], generator=torch.Generator().manual_seed(42))
@@ -72,8 +78,9 @@ def train():
     trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
     
     ''' Train '''
-    trainer.fit(model, train_dataloader, validation_dataloader)
-
+    # trainer.fit(model, train_dataloader, validation_dataloader)
+    trainer.fit(model, train_dataloader)
+    
     ''' Saving configuration file into log folder ''' 
     LOGDIR = trainer.log_dir
     json_object = json.dumps(config, indent=4)
