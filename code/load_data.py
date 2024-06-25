@@ -322,3 +322,51 @@ class Dataset_graph_direct_split(Dataset):
         return sample 
     
 
+class Dataset_RevMat_ae(Dataset):
+
+    def __init__(self, config, **kwargs):
+        self.data_in = []
+        self.data_target = []
+        PATH = config["PATH_TRAIN"]
+        f = h5py.File(PATH, 'r')
+        for k1 in f.keys():
+            if k1 != '.tempaxis':
+                for k2 in f[k1].keys():
+                    for k3 in f[k1][k2].keys():
+                        ### VERSION LIN
+                        # x = np.array([float(k1),float(k2),1e6*float(k3)])
+                        ### VERSION LOGLOG
+                        # x = np.array([np.log(float(k1)),np.log(float(k2)),np.log(float(k3))])
+                        ### VERSION SEMILOG
+                        # x = np.array([(float(k1)),(float(k2)),np.log(float(k3))])
+                        ### VERSION SEMILOG 2 VALUES
+                        x = np.array([(float(k2)),np.log(float(k3))])
+                        self.data_target.append(x)
+                        y = f[k1][k2][k3]['kubo']['L11']
+                        ymin = np.min(y)
+                        # y -= ymin # For log
+                        ymax = np.max(y)
+                        y = y/ymax
+                        # y = y + 2
+                        y_fin = np.zeros(y.shape[0]+2)
+                        y_fin[0] = ymin
+                        y_fin[1] = ymax
+                        y_fin[2:] = np.log(y)
+                        # print("----- ")
+                        # print(y[0:10])
+                        # print(y_fin[0:10])
+                        # print("----- ")
+                        self.data_in.append(y_fin)
+        self.data_in = torch.tensor(self.data_in, dtype=torch.torch.float64)
+        self.data_target = torch.tensor(self.data_target, dtype=torch.torch.float64)
+        # self.data_in.astype('double')
+        # self.data_target.astype('double')
+
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx]
+

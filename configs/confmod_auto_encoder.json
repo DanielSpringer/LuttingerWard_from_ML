@@ -33,6 +33,34 @@
         "num_nodes": 1,
     
 
+        "AUTO_ENCODER_RevMat_1": {
+                "MODEL_NAME": "encoder",
+                "MODEL_WRAPER": "model_wraper_generic",
+                "continue": false,
+                "SAVEPATH": "/home/daniel/Projects/RevMat/LuttingerWard_from_ML/saves/gather_noimp/save_encoder_BS5_2024-06-12/version_2/checkpoints/epoch=96-step=52186.ckpt",
+        
+                "PATH_TRAIN": "/home/daniel/Data/RevMat/gather_noimp.hdf5",
+                "DATA_LOADER": "Dataset_RevMat_ae",
+        
+                "batch_size": 20,
+                "learning_rate": 1e-5,
+                "weight_decay": 1e-8,
+                "epochs": 350,
+        
+                "in_dim": 102,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "hidden3_dim": 48,
+                "hidden4_dim": 32,
+                "hidden5_dim": 16,
+                "encoder_dim": 2,
+        
+                "device_type": "cpu",
+                "devices": 1,
+                "num_nodes": 1
+            },
+        
         "AUTO_ENCODER_1": {
                 "MODEL_NAME": "auto_encoder",
                 "MODEL_WRAPER": "model_wraper_encgiv",
