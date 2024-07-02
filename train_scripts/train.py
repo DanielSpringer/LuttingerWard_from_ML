@@ -17,30 +17,30 @@ import numpy as np
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
     ### TODO 
-    MODEL_NAME = "CONVERGENCE_AUTO_ENCODER_1"
+    MODEL_NAME = "AUTO_ENCODER_1"
     config = json.load(open('../configs/confmod_auto_encoder.json'))[MODEL_NAME]
     # MODEL_NAME = "AUTO_ENCODER_1"
     # config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
 
     ''' Dataloading '''
     ### > Separate training and validation HDF5 files 
-    rand_samples = torch.randint(0,1000,(100,), dtype=int)
-    sample_idxs = torch.ones(100, dtype=int) * 941
-    sample_idx = torch.cat([sample_idxs, rand_samples], axis=0)
-    sample_idx, _ = torch.sort(sample_idx)
-
-    ld = __import__("load_data", fromlist=['object'])
-    train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid", target_sample = sample_idx)
-    # validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
-    train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
-    # validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=False, num_workers=8, persistent_workers=True, pin_memory=True)
+    # rand_samples = torch.randint(0,1000,(100,), dtype=int)
+    # sample_idxs = torch.ones(100, dtype=int) * 941
+    # sample_idx = torch.cat([sample_idxs, rand_samples], axis=0)
+    # sample_idx, _ = torch.sort(sample_idx)
+    # ld = __import__("load_data", fromlist=['object'])
+    # train_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid", target_sample = sample_idx)
+    # # validation_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "valid")
+    # train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
+    # # validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=False, num_workers=8, persistent_workers=True, pin_memory=True)
     
     ### > Single HDF5 file containing training and validation data 
+    ld = __import__("load_data", fromlist=['object'])
     # data_set = load_data.Dataset_ae(config)
-    # # train_set, validation_set, unused_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.3), int(data_set.__len__()*0.05), int(data_set.__len__()*0.65)], generator=torch.Generator().manual_seed(42))
-    # train_set, validation_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.8), int(data_set.__len__()*0.2)], generator=torch.Generator().manual_seed(42))
-    # train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)
-    # validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
+    data_set = getattr(ld, config["DATA_LOADER"])(config, data_type = "metallic")
+    train_set, validation_set = torch.utils.data.random_split(data_set, [int(data_set.__len__()*0.8), (data_set.__len__()-int(data_set.__len__()*0.8))], generator=torch.Generator().manual_seed(42))
+    train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True)
+    validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], shuffle=True)
 
 
     ''' Model setup '''
@@ -73,9 +73,9 @@ def train():
     # ### > SLURM Training
     # trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger)
     # ### > Jupyter Notebook Training
-    # trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
+    trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
     # ### > Jupyter Notebook CPU Training
-    trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
+    # trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
     
     ''' Train '''
     # trainer.fit(model, train_dataloader, validation_dataloader)
