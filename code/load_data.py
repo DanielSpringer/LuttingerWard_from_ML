@@ -80,8 +80,9 @@ class Dataset_ae_split(Dataset):
     def __init__(self, config, **kwargs):
         PATH = config["PATH_TRAIN"]
         f = h5py.File(PATH, 'r')
-        data_in = np.array(f[kwargs["data_type"]]["data"][:,0,:])
-        data_target = np.array(f[kwargs["data_type"]]["data"][:,1,:])
+        
+        data_in = np.array(f[kwargs["data_type"]]["data"]["30.0"][:,0,:])
+        data_target = np.array(f[kwargs["data_type"]]["data"]["30.0"][:,1,:])
         self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
         self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
 

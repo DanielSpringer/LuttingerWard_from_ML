@@ -8,7 +8,7 @@
 #SBATCH --qos zen3_0512_a100x2
 #SBATCH --ntasks-per-node=2
 #SBATCH --nodes=1
-#SBATCH --time=13:00:00
+#SBATCH --time=03:00:00
 
 nvidia-smi
 
@@ -19,4 +19,4 @@ conda init bash
 conda activate conda_ml
 
 # mpirun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_Prediction/code/train.py
-srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/train.py
+srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/train_scripts/train.py
