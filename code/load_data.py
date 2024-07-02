@@ -328,6 +328,7 @@ class Dataset_RevMat_ae(Dataset):
         self.data_in = []
         self.data_target = []
         PATH = config["PATH_TRAIN"]
+        print(config["PATH_TRAIN"])
         f = h5py.File(PATH, 'r')
         for k1 in f.keys():
             if k1 != '.tempaxis':
