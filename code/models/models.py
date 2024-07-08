@@ -124,6 +124,40 @@ class auto_encoder(torch.nn.Module):
         x = self.decode(x)
         return x
     
+
+class auto_encoder_vertex(torch.nn.Module):
+    def __init__(self, config):
+        super(auto_encoder_vertex, self).__init__()
+        self.config = config
+        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
+
+        self.embedding = nn.Sequential(
+            nn.Linear(config["in_dim"], config["embedding_dim"])
+        )
+
+        self.encode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["encoder_dim"])
+        )
+
+        self.decode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["in_dim"])
+        )
+
+    def forward(self, data_in):
+        x = self.embedding(data_in)
+        x = self.encode(x)
+        x = self.decode(x)
+        return x
     
     
 class auto_encoder_conv(torch.nn.Module):

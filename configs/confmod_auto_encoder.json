@@ -87,6 +87,31 @@
                 "num_nodes": 2
         },
 
+        "AUTO_ENCODER_VERTEX": {
+            "MODEL_NAME": "auto_encoder_vertex",
+            "MODEL_WRAPER": "model_wraper_vertex",
+            "continue": false,
+            "SAVEPATH": "",
+
+            "PATH_TRAIN": "C:\\Users\\Daniel\\OneDrive - TU Wien\\Uni\\6. Semester\\Bachelorarbeit\\wavelets\\wavelet\\calculations",
+            "DATA_LOADER": "Dataset_ae_vertex",
+
+            "batch_size": 20,
+            "learning_rate": 1e-4,
+            "weight_decay": 1e-5,
+            "epochs": 150,
+
+            "in_dim": 1728,
+            "embedding_dim": 1024,
+            "hidden1_dim": 512,
+            "hidden2_dim": 256,
+            "encoder_dim": 128,
+
+            "device_type": "gpu",
+            "devices": 1,
+            "num_nodes": 1
+        },
+
         "INJECTION_AUTO_ENCODER_1": {
                 "ENCODER_MODEL_SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/U2c0_b10b50_gmax_10x10/save_auto_encoder_BS20_2024-04-15/version_0/",
                 "ENCODER_MODEL_SAVEFILE": "checkpoints/epoch=74-step=149625.ckpt",

@@ -2,7 +2,10 @@ from torch.utils.data import Dataset
 import torch
 import numpy as np
 import h5py
+import glob
+from copy import deepcopy
 from scipy.special import eval_legendre
+import random
 
 class Dataset_baseline(Dataset):
     """Dataset with minimal number of features.
@@ -68,6 +71,59 @@ class Dataset_ae(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
+
+class Dataset_ae_vertex(Dataset):
+    def __init__(self, config):
+        self.data_in: torch.Tensor = torch.tensor([])
+
+        SAMPLE_COUNT = 500
+
+        # Iterate through all files in given directory
+        for file_path in glob.glob(f"{config["PATH_TRAIN"]}/*.h5"):
+
+            # Get vertex and create slices in each of the 3 dimensions
+            full_vertex = self.get_vertex_from_filepath(file_path)
+            dim1_slices = list(full_vertex[e, f, :] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[1]))
+            dim2_slices = list(full_vertex[e, :, f] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[2]))
+            dim3_slices = list(full_vertex[:, e, f] for e in range(full_vertex.shape[1]) for f in range(full_vertex.shape[2]))
+
+            already_used = dict()
+            indices = []
+
+            length = len(dim1_slices)
+            assert len(dim2_slices) == length
+            assert len(dim3_slices) == length
+
+            while len(indices) < SAMPLE_COUNT:
+                index = (random.randint(0, length - 1), random.randint(0, length - 1), random.randint(0, length - 1))
+                if (already_used.get(index, None) == None):
+                    indices.append(index)
+                    already_used[index] = True
+
+            # Create and merge all row combinations
+            merged_slices = list([*dim1_slices[x], *dim2_slices[y], *dim3_slices[z]] for x, y, z in indices)
+        
+            # Append result to data_in
+            self.data_in = torch.cat([self.data_in, 
+                                        torch.tensor(merged_slices, dtype=torch.float32)], axis=0)
+                
+        # create deepcopy of result into data_target
+        self.data_target = deepcopy(self.data_in)
+
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx]
+
+    def get_vertex_from_filepath(self, path: str):
+        with h5py.File(path, 'r') as f:
+            for name, data in f["V"].items():
+                if name.startswith("step"):
+                    return data[()]
+        
 
 
 class Dataset_ae_split(Dataset):

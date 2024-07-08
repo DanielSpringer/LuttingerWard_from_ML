@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import json
 import pytorch_lightning as L
+from code.models import models
 # from models import models as models
 # from wrapper_AE import *
 
@@ -297,6 +298,48 @@ class model_wraper_generic(L.LightningModule):
         self.log('val_loss', loss.item(), prog_bar=True)
         self.validation_loss = loss.item()
         # print(self.train_loss, self.validation_loss)
+        return loss
+
+    def configure_optimizers(self) -> dict:
+        optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.config['learning_rate'], weight_decay=self.config['weight_decay'])
+        return {"optimizer": optimizer}
+    
+    def load_model_state(self, PATH):
+        checkpoint = torch.load(PATH, map_location='cuda:0')
+        self.model.load_state_dict(checkpoint['state_dict'])
+
+    
+class model_wraper_vertex(L.LightningModule):
+    ''' Wrapper for the vertex compression '''
+    def __init__(self, config):
+        super().__init__()
+        self.model = getattr(models, config["MODEL_NAME"])(config)
+        self.criterion_mse = nn.MSELoss()
+        self.config = config
+        self.val_pred = []
+        self.val_loss = []
+        self.train_loss = 0
+        self.validation_loss = 0
+
+    def forward(self, batch: torch.Tensor):
+        return self.model(batch)
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        pred = self.forward(batch[0])
+        target = batch[1].float()
+        loss = self.criterion_mse(pred, target)
+        self.log('train_loss', loss.item())
+        self.train_loss = loss.item()
+        return loss
+
+    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        pred = self.forward(batch[0])
+        target = batch[1].float()
+        loss = self.criterion_mse(pred, target)
+        self.val_pred.append([target, pred])
+        self.val_loss.append(loss)
+        self.log('val_loss', loss.item(), prog_bar=True)
+        self.validation_loss = loss.item()
         return loss
 
     def configure_optimizers(self) -> dict:
