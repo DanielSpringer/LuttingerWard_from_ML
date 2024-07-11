@@ -1,9 +1,0 @@
-03: dropout (0.2,0.4),   no_norm, Adam, bs_128
-04: dropout (0.0,0.0), Batchnorm, Adam, bs_128
-05: dropout (0.0,0.0),   no_norm, Adam, bs_128
-06: dropout (0.2,0.2),   no_norm, Adam, bs_128
-07: dropout (0.2,0.0),   no_norm, Adam, bs_128
-08: dropout (0.0,0.2),   no_norm, Adam, bs_128
-09: dropout (0.02,0.02), no_norm, SGD , bs_128
-
-10: dropout (0.2,0.4),   no_norm, Adam, bs_4
