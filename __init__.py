@@ -1,1 +1,1 @@
-from . import code
+from . import scripts

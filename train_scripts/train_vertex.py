@@ -15,8 +15,9 @@ import json
 import numpy as np
 from train_scripts.trainer_mode_enum import TrainerModes
 import importlib
-import code.load_data
-from code.wrappers import wrapers
+import scripts.load_data
+from scripts.wrappers import wrapers
+from scripts.load_data import Dataset_ae_vertex_validation
 
 trainer_mode = TrainerModes.JUPYTERGPU
 
@@ -37,11 +38,11 @@ def train():
     sample_idx, _ = torch.sort(sample_idx)
     
     # Load DataLoader
-    data_set = getattr(code.load_data, config["DATA_LOADER"])(config)
-    print(len(data_set))
-    train_set, validation_set = torch.utils.data.random_split(data_set, [int(len(data_set)*0.8), int(len(data_set)*0.2)], generator=torch.Generator().manual_seed(42))
+    train_set = getattr(scripts.load_data, config["DATA_LOADER"])(config)
+    validation_set = Dataset_ae_vertex_validation(config)
+    #train_set, validation_set = torch.utils.data.random_split(data_set, [int(len(data_set)*0.8), int(len(data_set)*0.2)], generator=torch.Generator().manual_seed(42))
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
-    validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], num_workers=8, persistent_workers=True, pin_memory=True)
+    validation_dataloader = DataLoader(validation_set, batch_size=1, num_workers=8, persistent_workers=True, pin_memory=True)
 
 
     ''' Model setup '''
