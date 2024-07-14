@@ -4,6 +4,7 @@ import json
 import pytorch_lightning as L
 from src.models import models
 import gc
+import functools
 # from models import models as models
 # from wrapper_AE import *
 
@@ -321,38 +322,47 @@ class model_wraper_vertex(L.LightningModule):
         self.val_loss = []
         self.train_loss = 0
         self.validation_loss = 0
+        self.positional_encoding = config["positional_encoding"]
+        self.loss_scaling = config["loss_scaling"]
 
     def forward(self, batch: torch.Tensor):
         return self.model(batch)
 
     def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        pred = self.forward(batch[0])
-        target = batch[1].float()
+
+        _input = batch[1]
+
+        if self.positional_encoding:
+            _input = torch.cat([batch[0], batch[1]], axis=0)
+
+        pred = self.forward(_input)
+        target = batch[2].float()
         loss = self.criterion_mse(pred, target)
+
+        if self.loss_scaling:
+            loss = self.scale(loss, batch[0])
+
         self.log('train_loss', loss.item())
         self.train_loss = loss.item()
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
-        pred = torch.zeros_like(batch[0][0])
-        full_vertex = batch[0][0]
-        for i in range(batch[0].shape[0]):
-            for j in range(batch[0].shape[1]):
-                dim1 = full_vertex[i, j, :]
-                dim2 = full_vertex[i, :, 0]
-                dim3 = full_vertex[:, j, 0]
-                full_input = torch.tensor([*dim1, *dim2, *dim3], dtype=torch.float32)
-                full_pred = self.forward(full_input.to("cuda:0"))
-                pred[i, j, :] = full_pred[:len(dim1)]
-                del dim1, dim2, dim3, full_input, full_pred
-        target = batch[1][0]
+        _input = batch[1]
+
+        if self.positional_encoding:
+            _input = torch.cat([batch[0], batch[1]], axis=0)
+
+        pred = self.forward(_input)
+        target = batch[2].float()
         loss = self.criterion_mse(pred, target)
-        #self.val_pred.append([target, pred])
+
+        if self.loss_scaling:
+            loss = self.scale(loss, batch[0])
+
+        self.val_pred.append([target, pred])
         self.val_loss.append(loss)
         self.log('val_loss', loss.item(), prog_bar=True)
         self.validation_loss = loss.item()
-        del pred
-        gc.collect()
         return loss
 
     def configure_optimizers(self) -> dict:
@@ -362,5 +372,13 @@ class model_wraper_vertex(L.LightningModule):
     def load_model_state(self, PATH):
         checkpoint = torch.load(PATH, map_location='cuda:0')
         self.model.load_state_dict(checkpoint['state_dict'])
+    
+    def scale(self, loss, position) -> float:
+        assert len(position) == 3
+        middle = 576 / 2
+        multiplier = functools.reduce(lambda x, y: x + y, position.map(lambda x: (x - middle)**2))
+        multiplier = max(1, multiplier) ** -1
+        return loss * multiplier
+    
 
 

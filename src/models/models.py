@@ -131,8 +131,13 @@ class auto_encoder_vertex(torch.nn.Module):
         self.config = config
         self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
 
+        in_dim = config["in_dim"];
+
+        if (config["positional_encoding"]):
+            in_dim += 3
+
         self.embedding = nn.Sequential(
-            nn.Linear(config["in_dim"], config["embedding_dim"])
+            nn.Linear(in_dim, config["embedding_dim"])
         )
 
         self.encode = nn.Sequential(
@@ -150,7 +155,7 @@ class auto_encoder_vertex(torch.nn.Module):
             self.activation,
             nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
             self.activation,
-            nn.Linear(config["hidden1_dim"], config["in_dim"])
+            nn.Linear(config["hidden1_dim"], config["out_dim"])
         )
 
     def forward(self, data_in):

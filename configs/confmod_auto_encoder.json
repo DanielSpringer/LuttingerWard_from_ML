@@ -110,7 +110,10 @@
 
             "device_type": "gpu",
             "devices": 1,
-            "num_nodes": 1
+            "num_nodes": 1,
+
+            "positional_encoding": false,
+            "loss_scaling": false
         },
 
         "INJECTION_AUTO_ENCODER_1": {

@@ -74,7 +74,8 @@ class Dataset_ae(Dataset):
 
 class Dataset_ae_vertex(Dataset):
     def __init__(self, config):
-        self.data_in: torch.Tensor = torch.tensor([])
+        self.data_in_indices: torch.Tensor = torch.tensor([])
+        self.data_in_slices: torch.Tensor = torch.tensor([])
 
         SAMPLE_COUNT = 500
 
@@ -83,40 +84,42 @@ class Dataset_ae_vertex(Dataset):
 
             # Get vertex and create slices in each of the 3 dimensions
             full_vertex = self.get_vertex_from_filepath(file_path)
-            dim1_slices = list(full_vertex[e, f, :] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[1]))
-            dim2_slices = list(full_vertex[e, :, f] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[2]))
-            dim3_slices = list(full_vertex[:, e, f] for e in range(full_vertex.shape[1]) for f in range(full_vertex.shape[2]))
 
-            already_used = dict()
-            indices = []
+            #dim1_slices = list(full_vertex[e, f, :] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[1]))
+            #dim2_slices = list(full_vertex[e, :, f] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[2]))
+            #dim3_slices = list(full_vertex[:, e, f] for e in range(full_vertex.shape[1]) for f in range(full_vertex.shape[2]))
+            #length = len(dim1_slices)
+            #assert len(dim2_slices) == length
+            #assert len(dim3_slices) == length
 
-            length = len(dim1_slices)
-            assert len(dim2_slices) == length
-            assert len(dim3_slices) == length
 
-            while len(indices) < SAMPLE_COUNT:
-                index = (random.randint(0, length - 1), random.randint(0, length - 1), random.randint(0, length - 1))
-                if (already_used.get(index, None) == None):
-                    indices.append(index)
-                    already_used[index] = True
+            length = 576
+            indices = random.sample(range(length ** 3), SAMPLE_COUNT)
+            indices = [(x % length, (x // length) % length, (x // (length**2)) % length) for x in indices]
 
             # Create and merge all row combinations
-            merged_slices = list([*dim1_slices[x], *dim2_slices[y], *dim3_slices[z]] for x, y, z in indices)
+            merged_slices = list([*full_vertex[x, y, :], *full_vertex[x, :, z], *full_vertex[:, y, z]] for x, y, z in indices)
         
             # Append result to data_in
-            self.data_in = torch.cat([self.data_in, 
+            self.data_in_slices = torch.cat([self.data_in_slices, 
                                         torch.tensor(merged_slices, dtype=torch.float32)], axis=0)
+            
+            self.data_in_indices = torch.cat([self.data_in_indices, 
+                                        torch.tensor(indices, dtype=torch.float32)], axis=0)
+            
+            assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
                 
         # create deepcopy of result into data_target
-        self.data_target = deepcopy(self.data_in)
+        self.data_target = deepcopy(self.data_in_slices[:, :length])
+        assert self.data_target[0] == self.data_in_slices[0][:length]
 
     def __len__(self):
-        return self.data_in.shape[0]
+        return self.data_in_slices.shape[0]
 
     def __getitem__(self, idx):
       if torch.is_tensor(idx):
           idx = idx.tolist()
-      return self.data_in[idx], self.data_target[idx]
+      return self.data_in_indices[idx], self.data_in_slices[idx], self.data_target[idx]
 
     def get_vertex_from_filepath(self, path: str):
         with h5py.File(path, 'r') as f:
@@ -124,7 +127,7 @@ class Dataset_ae_vertex(Dataset):
                 if name.startswith("step"):
                     return data[()]
         
-class Dataset_ae_vertex_validation(Dataset):
+class Dataset_ae_vertex_analysis(Dataset):
     def __init__(self, config):
         input_data = []
         

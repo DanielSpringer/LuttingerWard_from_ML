@@ -17,7 +17,7 @@ from train_scripts.trainer_mode_enum import TrainerModes
 import importlib
 import src.load_data
 from src.wrappers import wrapers
-from src.load_data import Dataset_ae_vertex_validation
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 trainer_mode = TrainerModes.JUPYTERGPU
 
@@ -38,9 +38,8 @@ def train():
     sample_idx, _ = torch.sort(sample_idx)
     
     # Load DataLoader
-    train_set = getattr(src.load_data, config["DATA_LOADER"])(config)
-    validation_set = Dataset_ae_vertex_validation(config)
-    #train_set, validation_set = torch.utils.data.random_split(data_set, [int(len(data_set)*0.8), int(len(data_set)*0.2)], generator=torch.Generator().manual_seed(42))
+    data_set = getattr(src.load_data, config["DATA_LOADER"])(config)
+    train_set, validation_set = torch.utils.data.random_split(data_set, [int(len(data_set)*0.8), int(len(data_set)*0.2)], generator=torch.Generator().manual_seed(42))
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
     validation_dataloader = DataLoader(validation_set, batch_size=1, num_workers=8, persistent_workers=True, pin_memory=True)
 
@@ -64,19 +63,27 @@ def train():
     # CONFIGURATION = f"../saves/save_{config['MODEL_NAME']}_Nodes{config['n_nodes']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
     logger = TensorBoardLogger(PATH, name=CONFIGURATION)
 
+    checkpoint_callback = ModelCheckpoint(
+    save_top_k=10,  # Save top 10 models
+    monitor='val_loss',  # Monitor validation loss
+    mode='min',  # 'min' for minimizing the validation loss
+    verbose=True
+)
+
+
 
     # '''Define (pytorch_lightning) Trainer '''
     # ### > SLURM Training
     if trainer_mode == TrainerModes.SLURM:
-        trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger)
+        trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger, callbacks=[checkpoint_callback])
     
     # ### > Jupyter Notebook Training
     elif trainer_mode == TrainerModes.JUPYTERGPU:
-        trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
+        trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()], callbacks=[checkpoint_callback])
 
     # ### > Jupyter Notebook CPU Training
     elif trainer_mode == TrainerModes.JUPYTERCPU:
-        trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
+        trainer = pl.Trainer(max_epochs=1, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()], callbacks=[checkpoint_callback])
 
     else:
         raise NotImplementedError("trainer mode not implemented")
