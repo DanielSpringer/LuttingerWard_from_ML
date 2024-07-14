@@ -106,6 +106,7 @@
             "hidden1_dim": 512,
             "hidden2_dim": 256,
             "encoder_dim": 128,
+            "out_dim": 576,
 
             "device_type": "gpu",
             "devices": 1,
