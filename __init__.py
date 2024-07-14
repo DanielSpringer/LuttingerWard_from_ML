@@ -1,1 +1,1 @@
-from . import scripts
+from . import src

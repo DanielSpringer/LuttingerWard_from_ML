@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import json
 import pytorch_lightning as L
-from scripts.models import models
+from src.models import models
 import gc
 # from models import models as models
 # from wrapper_AE import *
