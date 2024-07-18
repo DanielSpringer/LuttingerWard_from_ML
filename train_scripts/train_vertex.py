@@ -41,7 +41,7 @@ def train():
     data_set = getattr(src.load_data, config["DATA_LOADER"])(config)
     train_set, validation_set = torch.utils.data.random_split(data_set, [int(len(data_set)*0.8), int(len(data_set)*0.2)], generator=torch.Generator().manual_seed(42))
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)
-    validation_dataloader = DataLoader(validation_set, batch_size=1, num_workers=8, persistent_workers=True, pin_memory=True)
+    validation_dataloader = DataLoader(validation_set, batch_size=config["batch_size"], num_workers=8, persistent_workers=True, pin_memory=True)
 
 
     ''' Model setup '''
@@ -79,7 +79,7 @@ def train():
     
     # ### > Jupyter Notebook Training
     elif trainer_mode == TrainerModes.JUPYTERGPU:
-        trainer = pl.Trainer(max_epochs=20, accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()], callbacks=[checkpoint_callback])
+        trainer = pl.Trainer(max_epochs=config["epochs"], accelerator='gpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()], callbacks=[checkpoint_callback])
 
     # ### > Jupyter Notebook CPU Training
     elif trainer_mode == TrainerModes.JUPYTERCPU:

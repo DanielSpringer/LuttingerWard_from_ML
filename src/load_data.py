@@ -77,10 +77,10 @@ class Dataset_ae_vertex(Dataset):
         self.data_in_indices: torch.Tensor = torch.tensor([])
         self.data_in_slices: torch.Tensor = torch.tensor([])
 
-        SAMPLE_COUNT = 500
+        SAMPLE_COUNT = config["sample_count_per_vertex"]
 
         # Iterate through all files in given directory
-        for file_path in glob.glob(f"{config["PATH_TRAIN"]}/*.h5"):
+        for file_path in glob.glob(f"{config['PATH_TRAIN']}/*.h5"):
 
             # Get vertex and create slices in each of the 3 dimensions
             full_vertex = self.get_vertex_from_filepath(file_path)
@@ -111,7 +111,7 @@ class Dataset_ae_vertex(Dataset):
                 
         # create deepcopy of result into data_target
         self.data_target = deepcopy(self.data_in_slices[:, :length])
-        assert self.data_target[0] == self.data_in_slices[0][:length]
+        assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
 
     def __len__(self):
         return self.data_in_slices.shape[0]
@@ -132,7 +132,7 @@ class Dataset_ae_vertex_analysis(Dataset):
         input_data = []
         
         # Iterate through all files in given directory
-        for file_path in glob.glob(f"{config["PATH_TRAIN"]}/*.h5"):
+        for file_path in glob.glob(f"{config['PATH_TRAIN']}/*.h5"):
 
             # Get vertex and create slices in each of the 3 dimensions
             full_vertex = self.get_vertex_from_filepath(file_path)

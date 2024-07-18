@@ -93,13 +93,13 @@
             "continue": false,
             "SAVEPATH": "",
 
-            "PATH_TRAIN": "C:\\Users\\Daniel\\OneDrive - TU Wien\\Uni\\6. Semester\\Bachelorarbeit\\wavelets\\wavelet\\calculations",
+            "PATH_TRAIN": "D:/FRGS",
             "DATA_LOADER": "Dataset_ae_vertex",
 
-            "batch_size": 20,
+            "batch_size": 1,
             "learning_rate": 1e-4,
             "weight_decay": 1e-5,
-            "epochs": 150,
+            "epochs": 100,
 
             "in_dim": 1728,
             "embedding_dim": 1024,
@@ -111,9 +111,10 @@
             "device_type": "gpu",
             "devices": 1,
             "num_nodes": 1,
-
-            "positional_encoding": false,
-            "loss_scaling": false
+            
+            "sample_count_per_vertex": 1000,
+            "positional_encoding": true,
+            "loss_scaling": true
         },
 
         "INJECTION_AUTO_ENCODER_1": {

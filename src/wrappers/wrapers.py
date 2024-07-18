@@ -4,6 +4,7 @@ import json
 import pytorch_lightning as L
 from src.models import models
 import gc
+import numpy as np
 import functools
 # from models import models as models
 # from wrapper_AE import *
@@ -333,14 +334,14 @@ class model_wraper_vertex(L.LightningModule):
         _input = batch[1]
 
         if self.positional_encoding:
-            _input = torch.cat([batch[0], batch[1]], axis=0)
+            _input = torch.cat([batch[0], batch[1]], axis=1)
 
         pred = self.forward(_input)
         target = batch[2].float()
         loss = self.criterion_mse(pred, target)
 
         if self.loss_scaling:
-            loss = self.scale(loss, batch[0])
+            loss *= np.mean(list(self.get_mutliplier(x) for x in batch[0]))
 
         self.log('train_loss', loss.item())
         self.train_loss = loss.item()
@@ -350,14 +351,14 @@ class model_wraper_vertex(L.LightningModule):
         _input = batch[1]
 
         if self.positional_encoding:
-            _input = torch.cat([batch[0], batch[1]], axis=0)
+            _input = torch.cat([batch[0], batch[1]], axis=1)
 
         pred = self.forward(_input)
         target = batch[2].float()
         loss = self.criterion_mse(pred, target)
 
         if self.loss_scaling:
-            loss = self.scale(loss, batch[0])
+            loss *= np.mean(list(self.get_mutliplier(x) for x in batch[0]))
 
         self.val_pred.append([target, pred])
         self.val_loss.append(loss)
@@ -373,12 +374,12 @@ class model_wraper_vertex(L.LightningModule):
         checkpoint = torch.load(PATH, map_location='cuda:0')
         self.model.load_state_dict(checkpoint['state_dict'])
     
-    def scale(self, loss, position) -> float:
+    def get_mutliplier(self, position) -> float:
         assert len(position) == 3
         middle = 576 / 2
-        multiplier = functools.reduce(lambda x, y: x + y, position.map(lambda x: (x - middle)**2))
+        multiplier = functools.reduce(lambda x, y: x + y, map(lambda x: (x.item() - middle)**2, position))
         multiplier = max(1, multiplier) ** -1
-        return loss * multiplier
+        return multiplier * 1000000
     
 
 
