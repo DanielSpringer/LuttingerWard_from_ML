@@ -319,12 +319,7 @@ class model_wraper_vertex(L.LightningModule):
         self.model = getattr(models, config["MODEL_NAME"])(config)
         self.criterion_mse = nn.MSELoss()
         self.config = config
-        self.val_pred = []
-        self.val_loss = []
-        self.train_loss = 0
-        self.validation_loss = 0
         self.positional_encoding = config["positional_encoding"]
-        self.loss_scaling = config["loss_scaling"]
 
     def forward(self, batch: torch.Tensor):
         return self.model(batch)
@@ -340,11 +335,7 @@ class model_wraper_vertex(L.LightningModule):
         target = batch[2].float()
         loss = self.criterion_mse(pred, target)
 
-        if self.loss_scaling:
-            loss *= np.mean(list(self.get_mutliplier(x) for x in batch[0]))
-
         self.log('train_loss', loss.item())
-        self.train_loss = loss.item()
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
@@ -357,13 +348,7 @@ class model_wraper_vertex(L.LightningModule):
         target = batch[2].float()
         loss = self.criterion_mse(pred, target)
 
-        if self.loss_scaling:
-            loss *= np.mean(list(self.get_mutliplier(x) for x in batch[0]))
-
-        self.val_pred.append([target, pred])
-        self.val_loss.append(loss)
         self.log('val_loss', loss.item(), prog_bar=True)
-        self.validation_loss = loss.item()
         return loss
 
     def configure_optimizers(self) -> dict:
@@ -373,13 +358,6 @@ class model_wraper_vertex(L.LightningModule):
     def load_model_state(self, PATH):
         checkpoint = torch.load(PATH, map_location='cuda:0')
         self.model.load_state_dict(checkpoint['state_dict'])
-    
-    def get_mutliplier(self, position) -> float:
-        assert len(position) == 3
-        middle = 576 / 2
-        multiplier = functools.reduce(lambda x, y: x + y, map(lambda x: (x.item() - middle)**2, position))
-        multiplier = max(1, multiplier) ** -1
-        return multiplier * 1000000
     
 
 
