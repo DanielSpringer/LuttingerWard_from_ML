@@ -33,13 +33,6 @@ def train():
     # config = json.load(open('confmod_auto_encoder.json'))[MODEL_NAME]
 
     ''' Dataloading '''
-    ### > Separate training and validation HDF5 files 
-    rand_samples = torch.randint(0,1000,(100,), dtype=int)
-    sample_idxs = torch.ones(100, dtype=int) * 941
-    sample_idx = torch.cat([sample_idxs, rand_samples], axis=0)
-    sample_idx, _ = torch.sort(sample_idx)
-    
-    # Load DataLoader
     data_set = getattr(src.load_data, config["DATA_LOADER"])(config)
     train_set, validation_set = torch.utils.data.random_split(data_set, [int(len(data_set)*0.8), int(len(data_set)*0.2)], generator=torch.Generator().manual_seed(42))
     train_dataloader = DataLoader(train_set, batch_size=config["batch_size"], shuffle=True, num_workers=8, persistent_workers=True, pin_memory=True)

@@ -329,7 +329,7 @@ class model_wraper_vertex(L.LightningModule):
         _input = batch[1]
 
         if self.positional_encoding:
-            _input = torch.cat([batch[0], batch[1]], axis=1)
+            _input = (batch[0], batch[1])
 
         pred = self.forward(_input)
         target = batch[2].float()
@@ -342,7 +342,7 @@ class model_wraper_vertex(L.LightningModule):
         _input = batch[1]
 
         if self.positional_encoding:
-            _input = torch.cat([batch[0], batch[1]], axis=1)
+            _input = (batch[0], batch[1])
 
         pred = self.forward(_input)
         target = batch[2].float()
