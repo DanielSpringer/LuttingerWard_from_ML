@@ -214,14 +214,32 @@ import matplotlib.pyplot as plt
 # %%
 import h5py
 f = h5py.File("/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/Strategy_2/U2c0_b30.0_metiso_1.hdf5")
-print(f.keys())
-# print(f["metallic"]["data"]["30.0"].shape)
+print(f["metallic"]["data"].keys())
+print(f["metallic"]["data"]["30.0"].shape)
 # print(f["insulating"]["data"]["30.0"].shape)
+# data = f
+
+fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(20,5))
+fign = 0
+ax[fign].plot(f["metallic"]["data"]["30.0"][0,0,:].imag)
+ax[fign].plot(f["metallic"]["data"]["30.0"][110,0,:].imag)
+fign = 1
+ax[fign].plot(f["insulating"]["data"]["30.0"][0,0,:].imag)
+ax[fign].plot(f["insulating"]["data"]["30.0"][110,0,:].imag)
+
+fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(20,5))
+fign = 0
+ax[fign].plot(f["metallic"]["data"]["30.0"][0,1,:].imag)
+ax[fign].plot(f["metallic"]["data"]["30.0"][110,1,:].imag)
+fign = 1
+ax[fign].plot(f["insulating"]["data"]["30.0"][0,1,:].imag)
+ax[fign].plot(f["insulating"]["data"]["30.0"][110,1,:].imag)
 
 
 #%%
 
 print([met[0]])
+print(data.shape)
 
 fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(20,5))
 fign = 0
@@ -231,7 +249,7 @@ ax[fign].plot(data[0,met[20,0],met[20][1],1,:20].imag)
 ax[fign].plot(data[0,met[1220,0],met[1220][1],1,:20].imag)
 fign = 1
 ax[fign].plot(data[0,iso[0,0],iso[0][1],1,:20].imag)
-ax[fign].plot(data[3,iso[0,0],iso[0][1],1,:20].imag)
+ax[fign].plot(data[0,iso[0,0],iso[0][1],1,:20].imag)
 # ax[fign].plot(data[0,iso[20,0],iso[20][1],1,:20].imag)
 # ax[fign].plot(data[0,iso[1220,0],iso[1220][1],1,:20].imag)
 
@@ -261,3 +279,23 @@ fign = 2
 for n in n2:
     ax[fign].plot(data[0,10,n,0,:20].imag)
 
+#%%
+import h5py
+import matplotlib.pyplot as plt
+
+
+f = h5py.File("/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/Strategy_1/U2c0_b10_gmax_10x10.hdf5")
+print(f.keys())
+print(f['train'].keys())
+print(f['train']['data'].shape)
+print(f['valid']['data'].shape)
+
+fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(20,5))
+fign = 0
+ax[fign].plot(f['train']['data'][5000,0,:].imag)
+fign = 1
+ax[fign].plot(f['train']['data'][5000,1,:])
+
+
+print(f['train']['data'][5000,0,:3])
+print(f['train']['data'][5000,1,:3])

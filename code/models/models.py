@@ -116,6 +116,7 @@ class auto_encoder(torch.nn.Module):
             nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
             self.activation,
             nn.Linear(config["hidden1_dim"], config["out_dim"])
+            
         )
 
     def forward(self, data_in):
@@ -298,12 +299,24 @@ class GNN_Layer(MessagePassing):
 
     def message(self, x_i, x_j, x):
         """ Message creation over neighbours """
-        features = torch.cat((x_i, x_j[:, :int(x_j.shape[1]/3)]), dim=-1)
+        features = torch.cat((x_i, x_j[:, :int(x_j.shape[1]/2)]), dim=-1)
+        # print(x_i.shape)
+        # print(x_j.shape)
+        # print(features.shape)
+        # print("MESSAGE")
         message = self.message_net(features)
         return message
 
     def update(self, agg_message, x, v):
         """ Node update """
+        # print(v.shape)
+        # print(x.shape)
+        # print(agg_message.shape)
+        # print(torch.cat((v, x, agg_message), dim=-1).shape)
+        # print("UPDATE")
+        # print(self.update_net)
+        # print(self.update_net(torch.cat((v, x, agg_message), dim=-1)).shape)
+        # k = pp
         x += self.update_net(torch.cat((v, x, agg_message), dim=-1))
         return x
 
@@ -320,7 +333,7 @@ class GNN_basis(torch.nn.Module):
         self.message_out_dim = config["message_out_dim"]
         self.update_in_dim = config["message_out_dim"] + int(2*config["message_in_dim"]/2) # 3 Elements: agg message, local v, local feature (v, G)
         self.update_hidden_dim = config["update_hidden_dim"]
-        self.update_out_dim = config["omega_steps"] + 2*config["tau_steps"]
+        self.update_out_dim = config["update_out_dim"] # config["omega_steps"] + 1*config["omega_steps"]
         self.nr_coefficients = config["nr_coefficients"]
         self.hidden_layer = config["hidden_layer"]
         self.pre_pool_hidden_dim = config["pre_pool_hidden_dim"]
@@ -358,8 +371,8 @@ class GNN_basis(torch.nn.Module):
         x1 = data["vectors"][0]
         
         # Not sure whether deepcopy is really needed...idea is to preserve basis vectors.
-        v_shape = int(x.shape[1]/3)
-        x1 = copy.deepcopy(x)[:,:v_shape]
+        v_shape = int(x.shape[1]/2)
+        # x1 = copy.deepcopy(x)[:,:v_shape]
         x2 = copy.deepcopy(x)
 
         for i in range(self.hidden_layer):
@@ -377,6 +390,8 @@ class GNN_basis(torch.nn.Module):
 
         if self.config["weird"] == False:
             x3 = torch.zeros(self.out_dim, device=x2.device, dtype=torch.float64)
+            # print(x1.shape, coefficients.shape)
+            # k = pp
             for n in range(0, coefficients.shape[1]):
                 x3 += x1[n,:] * coefficients[0,n]
         

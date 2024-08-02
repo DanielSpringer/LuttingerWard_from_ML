@@ -61,6 +61,67 @@
                 "num_nodes": 1
                 },
         
+
+        "AUTO_ENCODER_LW_metmet": {
+                "MODEL_NAME": "auto_encoder",
+                "MODEL_WRAPER": "model_wraper_generic",
+                "continue": true,
+                "SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/metallic_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-28/version_1/checkpoints/epoch=29-step=17100.ckpt",
+        
+                "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/Strategy_2/U2c0_b30.0_metiso_1.hdf5",
+                "TRAINDATA": "metallic/data/30.0",
+                "VALIDATIONDATA": "metallic/data/30.0",
+                "SPLIT": 0.8,
+                "DATA_LOADER": "Dataset_generic",
+        
+                "batch_size": 5,
+                "learning_rate": 2e-6,
+                "weight_decay": 5e-8,
+                "epochs": 350,
+        
+                "in_dim": 200,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "encoder_dim": 32,
+                "out_dim": 200,
+        
+                "device_type": "gpu",
+                "devices": 1,
+                "num_nodes": 1
+                },
+        
+        "AUTO_ENCODER_LW_isoiso": {
+                "MODEL_NAME": "auto_encoder",
+                "MODEL_WRAPER": "model_wraper_generic",
+                "continue": true,
+                "SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/insulating_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-29/version_2/checkpoints/epoch=29-step=30930.ckpt",
+        
+                "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/Strategy_2/U2c0_b30.0_metiso_1.hdf5",
+                "TRAINDATA": "insulating/data/30.0",
+                "VALIDATIONDATA": "insulating/data/30.0",
+                "SPLIT": 0.8,
+                "DATA_LOADER": "Dataset_generic",
+        
+                "batch_size": 5,
+                "learning_rate": 1e-5,
+                "weight_decay": 1e-7,
+                "epochs": 350,
+        
+                "in_dim": 200,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "encoder_dim": 32,
+                "out_dim": 200,
+        
+                "device_type": "gpu",
+                "devices": 1,
+                "num_nodes": 1
+                },
+        
+
+
         "AUTO_ENCODER_1": {
                 "MODEL_NAME": "auto_encoder",
                 "MODEL_WRAPER": "model_wraper_generic",

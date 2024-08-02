@@ -7,15 +7,15 @@
         "VALIDATIONDATA": "insulating/data/30.0",
         "SPLIT": 0.8,
         "DATA_LOADER": "Dataset_graph_generic",
-
-        "continue": true,
-        "SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/metallic_only/U2c0_b30.0_metiso_1/save_GNN_basis_BS5_2024-07-31/version_0/checkpoints/epoch=199-step=114000.ckpt",
-
-        "n_nodes":                  300,
+        
+        "continue": false,
+        "SAVEPATH": "",
+        
+        "n_nodes":                  200,
         "weird":                    false,
-        "batch_size":               3,
-        "learning_rate":            1e-5,
-        "weight_decay":             1e-7,
+        "batch_size":               1,
+        "learning_rate":            1e-3,
+        "weight_decay":             1e-6,
         "epochs":                   80,
 
         "omega_steps":              200,
@@ -29,7 +29,7 @@
         "pre_pool_hidden_dim":      200,
         "pre_pool_out_dim":         200,
         "post_pool_hidden_dim":     200,
-        "nr_coefficients":          300,
+        "nr_coefficients":          200,
         "hidden_layer":             4,
 
         "device_type": "gpu",
