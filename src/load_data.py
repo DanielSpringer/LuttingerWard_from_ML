@@ -110,8 +110,21 @@ class Dataset_ae_vertex(Dataset):
             assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
                 
         # create deepcopy of result into data_target
-        self.data_target = deepcopy(self.data_in_slices[:, :length])
-        assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
+        axis = config.get("construction_axis", 3)
+
+        match axis:
+            case 1: 
+                self.data_target = deepcopy(self.data_in_slices[:, 2*length:])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
+            case 2:
+                self.data_target = deepcopy(self.data_in_slices[:,length:2*length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
+            case 3:
+                self.data_target = deepcopy(self.data_in_slices[:, :length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
+            case _:
+                raise NotImplementedError("Axis invalid")
+        
 
     def __len__(self):
         return self.data_in_slices.shape[0]
