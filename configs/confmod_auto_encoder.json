@@ -90,9 +90,8 @@
         "AUTO_ENCODER_VERTEX": {
             "MODEL_NAME": "auto_encoder_vertex",
             "MODEL_WRAPER": "model_wraper_vertex",
-            "continue": false,
-            "SAVEPATH": "",
-            "LOGPATH": "",
+            "continue": true,
+            "SAVEPATH": "C:/Users/Daniel/OneDrive - TU Wien/Uni/6. Semester/Bachelorarbeit/autoencoder/LuttingerWard_from_ML/saves/vertex/save_auto_encoder_vertex_BS20_2024-08-11/version_1/checkpoints/epoch=263-step=739200.ckpt",
 
             "PATH_TRAIN": "D:/FRGS",
             "DATA_LOADER": "Dataset_ae_vertex",
@@ -101,19 +100,16 @@
             "learning_rate": 1e-4,
             "weight_decay": 1e-5,
             "epochs": 1000,
-
             "in_dim": 1728,
             "embedding_dim": 1024,
             "hidden1_dim": 512,
             "hidden2_dim": 256,
             "encoder_dim": 128,
             "out_dim": 576,
-
             "device_type": "gpu",
             "devices": 1,
             "num_nodes": 1,
-            "construction_axis": 1,
-            
+            "construction_axis": 2,
             "sample_count_per_vertex": 2000,
             "positional_encoding": false
         },
