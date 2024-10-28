@@ -90,8 +90,8 @@
         "AUTO_ENCODER_VERTEX": {
             "MODEL_NAME": "auto_encoder_vertex",
             "MODEL_WRAPER": "model_wraper_vertex",
-            "continue": true,
-            "SAVEPATH": "C:/Users/Daniel/OneDrive - TU Wien/Uni/6. Semester/Bachelorarbeit/autoencoder/LuttingerWard_from_ML/saves/vertex/save_auto_encoder_vertex_BS20_2024-08-11/version_1/checkpoints/epoch=263-step=739200.ckpt",
+            "continue": false,
+            "SAVEPATH": "",
 
             "PATH_TRAIN": "D:/FRGS",
             "DATA_LOADER": "Dataset_ae_vertex",
@@ -109,9 +109,9 @@
             "device_type": "gpu",
             "devices": 1,
             "num_nodes": 1,
-            "construction_axis": 2,
+            "construction_axis": 3,
             "sample_count_per_vertex": 2000,
-            "positional_encoding": false
+            "positional_encoding": true
         },
 
         "INJECTION_AUTO_ENCODER_1": {
