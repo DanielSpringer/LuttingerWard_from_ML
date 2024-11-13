@@ -85,14 +85,6 @@ class Dataset_ae_vertex(Dataset):
             # Get vertex and create slices in each of the 3 dimensions
             full_vertex = self.get_vertex_from_filepath(file_path)
 
-            #dim1_slices = list(full_vertex[e, f, :] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[1]))
-            #dim2_slices = list(full_vertex[e, :, f] for e in range(full_vertex.shape[0]) for f in range(full_vertex.shape[2]))
-            #dim3_slices = list(full_vertex[:, e, f] for e in range(full_vertex.shape[1]) for f in range(full_vertex.shape[2]))
-            #length = len(dim1_slices)
-            #assert len(dim2_slices) == length
-            #assert len(dim3_slices) == length
-
-
             length = 576
             indices = random.sample(range(length ** 3), SAMPLE_COUNT)
             indices = [(x % length, (x // length) % length, (x // (length**2)) % length) for x in indices]
@@ -109,9 +101,9 @@ class Dataset_ae_vertex(Dataset):
             
             assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
                 
-        # create deepcopy of result into data_target
         axis = config.get("construction_axis", 3)
 
+        # Construct target data
         match axis:
             case 1: 
                 self.data_target = deepcopy(self.data_in_slices[:, 2*length:])
