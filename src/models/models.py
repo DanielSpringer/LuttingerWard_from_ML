@@ -171,6 +171,16 @@ class auto_encoder_vertex(torch.nn.Module):
             x = self.decode(x)
         return x
     
+    def embed_and_encode(self, data_in):
+        if (self.config["positional_encoding"]):
+            y = (data_in[0]) / 576.0
+            x = self.embedding(torch.cat([y, data_in[1]], axis=1))
+            x = self.encode(x)
+        else:
+            x = self.embedding(data_in)
+            x = self.encode(x)
+        return x
+    
     
 class auto_encoder_conv(torch.nn.Module):
     def __init__(self, config):

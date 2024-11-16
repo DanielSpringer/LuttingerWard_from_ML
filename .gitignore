@@ -9,10 +9,13 @@ saves
 videos
 data 
 dist
+latents
+.vscode
 *.pyc
 *.pdf
 *.csv
 *.pt
+*.pkl
 slurm
 .neptune
 events.*
