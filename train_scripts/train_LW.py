@@ -9,6 +9,7 @@ import load_data
 import datetime
 from pytorch_lightning.loggers import TensorBoardLogger
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.plugins.environments import LightningEnvironment
 import json
 import os
@@ -21,21 +22,29 @@ def create_datasets(config):
     
     PATH = config["PATH_TRAIN"]
     f = h5py.File(PATH, 'r')
-    data = np.array(f["train"]['data'][:5000])
-    train, validation = torch.utils.data.random_split(data, [int(data.__len__()*0.8), int(data.__len__())-int(data.__len__()*0.8)], generator=torch.Generator().manual_seed(42))
+    #data = np.array(f["train"]['data'])
+    #rint("************************************")
+    #print("************************************")
+    #print("************************************")
+    #rint("************************************")
+    #print("Size of dataset: ", data.shape)
+    #print("************************************")
+    #print("************************************")
+    #print("************************************")
+    #print("************************************")
+    #train, validation = torch.utils.data.random_split(data, [int(data.__len__()*0.8), int(data.__len__())-int(data.__len__()*0.8)], generator=torch.Generator().manual_seed(42))
 
-    # if config["TRAINDATA"]==config["VALIDATIONDATA"]:
-    #     data = np.array(f[config["TRAINDATA"]])
-    #     train, validation = torch.utils.data.random_split(data, [int(data.__len__()*config["SPLIT"]), int(data.__len__())-int(data.__len__()*config["SPLIT"])], generator=torch.Generator().manual_seed(42))
-    # train, validation = torch.utils.data.random_split(data, [int(data.__len__()*config["SPLIT"]), int(data.__len__())-int(data.__len__()*config["SPLIT"])], generator=torch.Generator().manual_seed(42))
+    if config["TRAINDATA"]==config["VALIDATIONDATA"]:
+        data = np.array(f[config["TRAINDATA"]])
+        train, validation = torch.utils.data.random_split(data, [int(data.__len__()*config["SPLIT"]), int(data.__len__())-int(data.__len__()*config["SPLIT"])], generator=torch.Generator().manual_seed(42))
     return train, validation
 
 
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
     ### TODO 
-    MODEL_NAME = "GNN_basis"
-    config = json.load(open('../configs/confmod_graph_neural_network.json'))[MODEL_NAME]
+    MODEL_NAME = "GNN_basis_2"
+    config = json.load(open('../configs/confmod_graph_neural_network_2.json'))[MODEL_NAME]
 
     ''' Dataloading '''
     train_data, validation_data = create_datasets(config)
@@ -66,19 +75,41 @@ def train():
 
     ''' Logging and saving '''
     DATA_NAME = os.path.splitext(os.path.basename(config["PATH_TRAIN"]))[0]
-
-    PATH = ""
-    CONFIGURATION = f"../saves/TEST/{DATA_NAME}/save_{config['MODEL_NAME']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
+    print(" TRAIN DATA (slurm relevance) ")
+    print(config["PATH_TRAIN"])
+    print(DATA_NAME)
+    
+    PATH = "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/"
+    CONFIGURATION = f"{PATH}/SigmaTrans/metiso/{DATA_NAME}/save_{config['MODEL_NAME']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
     logger = TensorBoardLogger(PATH, name=CONFIGURATION)
+    
+    early_stop_callback = EarlyStopping(monitor="val_loss", mode="min", min_delta=0.00, patience=20, verbose=False)
+    checkpoint_callback = ModelCheckpoint(save_top_k=-1)
 
-
+    
     # ### '''Define (pytorch_lightning) Trainer '''
     # ### > SLURM Training
-    # trainer = pl.Trainer(max_epochs=config["epochs"], accelerator=config["device_type"], devices=config["devices"], num_nodes=config["num_nodes"], strategy='ddp', logger=logger)
+    trainer = pl.Trainer(max_epochs=config["epochs"], 
+                        accelerator=config["device_type"], 
+                        devices=config["devices"], 
+                        num_nodes=config["num_nodes"], 
+                        strategy='ddp', 
+                        logger=logger
+                        # callbacks=[checkpoint_callback]
+                        )
     # ### > Jupyter Notebook Training
-    # trainer = pl.Trainer(max_epochs=50, accelerator='gpu', devices=1, strategy='auto', logger=logger, log_every_n_steps=100, plugins=[LightningEnvironment()])
+    # trainer = pl.Trainer(max_epochs=config["epochs"], 
+    #                      accelerator='gpu', 
+    #                      devices=1, 
+    #                      strategy='auto', 
+    #                      logger=logger, 
+    #                      # log_every_n_steps=1, 
+    #                      plugins=[LightningEnvironment()], 
+    #                      callbacks=[checkpoint_callback]
+    #                     )
+
     # ### > Jupyter Notebook CPU Training
-    trainer = pl.Trainer(max_epochs=20, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
+    # trainer = pl.Trainer(max_epochs=20, accelerator='cpu', devices=1, strategy='auto', logger=logger, plugins=[LightningEnvironment()])
     
     # ''' Train '''
     trainer.fit(model, train_dataloader, validation_dataloader)

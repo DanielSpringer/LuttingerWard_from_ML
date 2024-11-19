@@ -17,4 +17,4 @@ conda init bash
 #source ~/.bashrc
 conda activate conda_ml
 
-srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/train_cpu.py
+srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/train_scripts/train_LW.py

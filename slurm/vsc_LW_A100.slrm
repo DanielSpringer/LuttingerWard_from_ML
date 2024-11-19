@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#SBATCH -J LW13h
+#SBATCH -J LW
 #SBATCH --mail-type=BEGIN    # first have to state the type of event to occur 
 #SBATCH --mail-user=<email@address.at>   # and then your email address
 
@@ -8,7 +8,7 @@
 #SBATCH --qos zen3_0512_a100x2
 #SBATCH --ntasks-per-node=2
 #SBATCH --nodes=1
-#SBATCH --time=03:00:00
+#SBATCH --time=24:00:00
 
 nvidia-smi
 
@@ -19,4 +19,4 @@ conda init bash
 conda activate conda_ml
 
 # mpirun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_Prediction/code/train.py
-srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/train_scripts/train.py
+srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/train_scripts/train_LW.py

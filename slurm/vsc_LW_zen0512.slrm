@@ -1,14 +1,14 @@
 #!/bin/bash -l
 #
 #SBATCH -J MLcpu
-#SBATCH -N 10
+#SBATCH -N 1
 #SBATCH --mail-type=BEGIN    # first have to state the type of event to occur 
 #SBATCH --mail-user=<email@address.at>   # and then your email address
 
 #SBATCH --partition=zen3_0512
 #SBATCH --qos zen3_0512
 #SBATCH --ntasks-per-node=128
-#SBATCH --nodes=10
+#SBATCH --nodes=1
 #SBATCH --time=04:00:00
 
 FILES=(/home/fs72150/springerd/XInstalls/anaconda3/*)
@@ -17,4 +17,5 @@ conda init bash
 #source ~/.bashrc
 conda activate conda_ml
 
-srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/train_cpu.py
+# srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/train_cpu.py
+srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/train_scripts/train_LW.py
