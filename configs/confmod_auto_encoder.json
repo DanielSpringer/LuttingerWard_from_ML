@@ -87,7 +87,7 @@
                 "out_dim": 200,
         
                 "device_type": "gpu",
-                "devices": 1,
+                "devices": 2,
                 "num_nodes": 1
                 },
         
