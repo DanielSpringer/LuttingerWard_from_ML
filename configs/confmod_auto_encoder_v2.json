@@ -1,0 +1,24 @@
+{
+    "AUTO_ENCODER_VERTEX_V2": {
+        "MODEL_NAME": "AutoEncoderVertex",
+        "model_wrapper": "VertexWrapper",
+        "resume": false,
+
+        "path_train": "../frgs",
+        "dataset": "AutoEncoderVertexV2",
+
+        "batch_size": 20,
+        "learning_rate": 1e-4,
+        "weight_decay": 1e-5,
+        "epochs": 100,
+        "hidden_dims": [1024, 512, 256, 128],
+        "out_dim": 576,
+        "device_type": "gpu",
+        "devices": 1,
+        "num_nodes": 1,
+        
+        "construction_axis": 3,
+        "sample_count_per_vertex": 2000,
+        "positional_encoding": true
+    }
+}

@@ -1,11 +1,24 @@
-from torch.utils.data import Dataset
-import torch
-import numpy as np
-import h5py
 import glob
-from copy import deepcopy
-from scipy.special import eval_legendre
 import random
+from abc import ABC, abstractmethod
+from copy import deepcopy
+
+import h5py
+import numpy as np
+from scipy.special import eval_legendre
+
+import torch
+from torch.utils.data import Dataset
+
+from . import config
+
+
+class FilebasedDataset(Dataset, ABC):
+    @staticmethod
+    @abstractmethod
+    def load_from_file(path: str) -> torch.Tensor:
+        pass
+
 
 class Dataset_baseline(Dataset):
     """Dataset with minimal number of features.
@@ -53,8 +66,8 @@ class Dataset_baseline_conv(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
-    
-    
+
+
 class Dataset_ae(Dataset):
     def __init__(self, config):
         PATH = config["PATH_TRAIN"]
@@ -71,6 +84,7 @@ class Dataset_ae(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
+
 
 class Dataset_ae_vertex(Dataset):
     def __init__(self, config):
@@ -131,7 +145,8 @@ class Dataset_ae_vertex(Dataset):
             for name, data in f["V"].items():
                 if name.startswith("step"):
                     return data[()]
-        
+
+
 class Dataset_ae_vertex_analysis(Dataset):
     def __init__(self, config):
         input_data = []
@@ -162,6 +177,62 @@ class Dataset_ae_vertex_analysis(Dataset):
             for name, data in f["V"].items():
                 if name.startswith("step"):
                     return data[()]
+
+
+class AutoEncoderVertexV2(FilebasedDataset):
+    def __init__(self, config: config.VertexConfig):
+        self.data_in_indices: torch.Tensor = torch.tensor([])
+        self.data_in_slices: torch.Tensor = torch.tensor([])
+        length = -1
+
+        # Iterate through all files in given directory
+        for file_path in glob.glob(f"{config.path_train}/*.h5"):
+            # Get vertex and create slices in each of the 3 dimensions
+            full_vertex = self.load_from_file(file_path)
+            length = full_vertex.shape[0]
+            indices = random.sample(range(length ** 3), config.sample_count_per_vertex)
+            indices = [(x % length, (x // length) % length, (x // (length**2)) % length) for x in indices]
+
+            # Create and merge all row combinations
+            merged_slices = list([*full_vertex[x, y, :], *full_vertex[x, :, z], *full_vertex[:, y, z]] for x, y, z in indices)
+        
+            # Append result to data_in
+            self.data_in_slices = torch.cat([self.data_in_slices, 
+                                        torch.tensor(merged_slices, dtype=torch.float32)], axis=0)
+            self.data_in_indices = torch.cat([self.data_in_indices, 
+                                        torch.tensor(indices, dtype=torch.float32)], axis=0)
+            assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
+        axis = config.construction_axis
+
+        # Construct target data
+        match axis:
+            case 1: 
+                self.data_target = deepcopy(self.data_in_slices[:, 2*length:])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
+            case 2:
+                self.data_target = deepcopy(self.data_in_slices[:,length:2*length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
+            case 3:
+                self.data_target = deepcopy(self.data_in_slices[:, :length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
+            case _:
+                raise NotImplementedError("Axis invalid")
+
+    def __len__(self):
+        return self.data_in_slices.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in_indices[idx], self.data_in_slices[idx], self.data_target[idx]
+
+    @staticmethod
+    def load_from_file(path: str) -> np.ndarray:
+        with h5py.File(path, 'r') as f:
+            for name, data in f["V"].items():
+                if name.startswith("step"):
+                    return data[()]
+
 
 class Dataset_ae_split(Dataset):
     ''' Compared to Dataset_ae, this dataset expects input data where the split between training and
@@ -275,7 +346,6 @@ class Dataset_convergence_split(Dataset):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx], self.g0[idx]
 
-    
 
 class Dataset_graph_split(Dataset):
     def __init__(self, config, **kwargs):
@@ -324,7 +394,7 @@ class Dataset_graph_split(Dataset):
         sample["target"] = torch.tensor(self.data_target[idx].imag, dtype=torch.torch.float64)
         sample["vectors"] = self.vectors
         return sample #[node_features, self.edge_index, self.data_target[idx], self.vectors] #, graph
-    
+
 
 class Dataset_graph_direct_split(Dataset):
     def __init__(self, config, **kwargs):
@@ -367,7 +437,7 @@ class Dataset_graph_direct_split(Dataset):
         sample["edge_index"] = self.edge_index
         sample["target"] = torch.tensor(self.data_target[idx].imag, dtype=torch.torch.float64)
         return sample 
-    
+
 
 class Dataset_RevMat_ae(Dataset):
 
