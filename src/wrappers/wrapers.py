@@ -1,8 +1,10 @@
+import sys
+sys.path.append('/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/src/')
 import torch 
 from torch import nn
 import json
 import pytorch_lightning as L
-from src.models import models
+from models import models
 import gc
 import numpy as np
 import functools
