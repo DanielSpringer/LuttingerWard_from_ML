@@ -1,6 +1,6 @@
 #%%
 import sys
-sys.path.append('/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/')
+sys.path.append('/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/src/')
 import torch
 # from models import models as models
 # from wrappers import wrapers
