@@ -6,7 +6,7 @@ import random
 
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 import numpy as np
 from lightning.pytorch import Trainer
@@ -19,6 +19,11 @@ from torch.utils.data import DataLoader, random_split
 from . import config, load_data, wrapper
 
 
+R = TypeVar('R', bound=wrapper.BaseWrapper)
+S = TypeVar('S', bound=load_data.FilebasedDataset)
+T = TypeVar('T', bound=config.Config)
+
+
 class TrainerModes(Enum):
     SLURM = 1
     JUPYTERGPU = 2
@@ -26,8 +31,8 @@ class TrainerModes(Enum):
     LOCAL = 4
 
 
-class BaseTrainer:
-    config_cls: type[config.Config] = config.Config
+class BaseTrainer(Generic[T, S, R]):
+    config_cls: type[T] = T.__bound__
 
     def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, test_ratio: float = 0.2, 
                  config_dir: str = 'configs', config_kwargs: dict[str, Any] = {}):
@@ -58,11 +63,16 @@ class BaseTrainer:
         self.subconfig_name = subconfig_name
         self.test_ratio = test_ratio
 
-        self.config = self.config_cls.from_json(config_name, subconfig_name, config_dir, **config_kwargs)
-        self.dataset: load_data.FilebasedDataset = self.config.dataset(self.config)
+        self.config: T = self.config_cls.from_json(config_name, subconfig_name, config_dir, **config_kwargs)
+        self.dataset: S = self.config.dataset(self.config)
         self.data_loader: type[DataLoader] = self.config.data_loader
 
-        self.model = None
+        self.wrapper: R = None
+    
+    @property
+    def input_size(self) -> int|np.ndarray:
+        """Get the input size of the model. Overwrite for custom input size."""
+        return self.dataset[0][0].shape[0]
 
     def train(self, train_mode: TrainerModes) -> None:
         self.pre_train()
@@ -70,7 +80,7 @@ class BaseTrainer:
         self.post_train()
     
     def predict(self, new_data_path: str, save_path: str|None = None, model_path: str|None = None, 
-                load_model: bool = False) -> np.ndarray:
+                load_model: bool = False, **kwargs) -> np.ndarray:
         """
         If already trained, uses the trained model, otherwise loads a model and performs a prediction on new data.
 
@@ -88,15 +98,18 @@ class BaseTrainer:
         
         :param load_model: Force load a model. (defaults to False)
         :type load_model: bool, optional
+
+        :param kwargs: Additional keyword arguments handed to the `_predict` method.
+        :type kwargs: dict[str, Any]
         
         :return: Prediction as numpy array.
         :rtype: np.ndarray
         """
         new_data = self.dataset.load_from_file(new_data_path)
-        if self.model is None or load_model or save_path or model_path:
-            self._load_model(save_path, model_path)
-        self.model.model.eval()
-        return self._predict(new_data)
+        if self.wrapper is None or load_model or save_path or model_path:
+            self.load_model(save_path, model_path)
+        self.wrapper.model.eval()
+        return self._predict(new_data, **kwargs)
 
     def pre_train(self) -> None:
         """Overwrite to perform operations before the main training"""
@@ -105,10 +118,6 @@ class BaseTrainer:
     def post_train(self) -> None:
         """Overwrite to perform operations after the main training"""
         pass
-
-    def get_input_size(self) -> int|np.ndarray:
-        """Get the input size of the model. Overwrite for custom input size."""
-        return self.dataset[0][0].shape[0]
 
     def create_data_loader(self) -> tuple[DataLoader, DataLoader]:
         """Create DataLoader. Overwrite for custom data loading."""
@@ -122,47 +131,68 @@ class BaseTrainer:
 
     def set_logging(self) -> TensorBoardLogger:
         """Set TensorBoardLogger and ModelCheckpoint. Overwrite for custom logging."""
-        save_path = self._get_save_prefix() + str(datetime.datetime.now().date())
-        logger = TensorBoardLogger('', name=save_path)
+        save_path = self.save_prefix + str(datetime.datetime.now().date())
+        logger = TensorBoardLogger(self.get_full_save_path(''), name=save_path)
         self.config.save_path = logger.log_dir
         return logger
 
-    def _predict(self, new_data: np.ndarray) -> np.ndarray:
+    def _predict(self, new_data: np.ndarray, **kwargs) -> np.ndarray:
         """Overwrite for customized prediction."""
         input = torch.tensor(new_data, dtype=torch.float32).to('cpu')
-        return self.model(input).detach().numpy()
+        return self.wrapper(input).detach().numpy()
     
-    def _get_save_prefix(self) -> str:
+    def get_full_save_path(self, save_path: str|None = None) -> str:
+        if not save_path:
+            save_path = self.config.save_path
+        return os.path.join(self.config.save_dir, self.project_name, save_path)
+    
+    @property
+    def save_prefix(self) -> str:
         return f"save_{self.subconfig_name}_BS{self.config.batch_size}_"
 
-    def _load_model(self, save_path: str|None = None, model_path: str|None = None) -> None:
+    def load_model(self, save_path: str|None = None, model_path: str|None = None) -> None:
+        """
+        Loads a model and corresponding config into the trainer. 
+        Loads the model either from a given checkpoint filepath or from the newest checkpoint in a given directory.
+
+        :param save_path: Save directory for the model run (`<model_name>/<version>/`). 
+                          The newest checkpoint in the directory is loaded. 
+                          If `None` `self.config.save_path` is used. (defaults to None)
+        :type save_path: str | None, optional
+        
+        :param model_path: Load a model from an absolute path or a path relative to project-subdirectory 
+                           (named after `self.project_name`). If `None` **save_path** is used. (defaults to None)
+        :type model_path: str | None, optional
+        """
         assert model_path or save_path or self.config.save_path, "No save_path found in the config-file, please provide a save_path or model_path."
-        if model_path and not Path(model_path).is_absolute():
-            ckpt_path = os.path.join(self.config.save_dir, self.project_name, model_path)
+        if Path(model_path).is_absolute():
+            ckpt_path = model_path
+        elif model_path:
+            ckpt_path = self.get_full_save_path(model_path)
         else:
             save_path = save_path or self.config.save_path
-            ckpt_path = os.path.join(Path.cwd(), self.config.save_dir, self.project_name, save_path)
+            ckpt_path = self.get_full_save_path(save_path)
             ckpt_files = glob.glob(os.path.join(ckpt_path, '**/*.ckpt'), recursive=True)
             ckpt_path = max(ckpt_files, key=os.path.getctime)
         save_path = Path(ckpt_path).parent.parent.relative_to(Path.cwd() / self.config.save_dir / self.project_name).as_posix()
-        self.config = self.config_cls.from_json('config.json', Path(ckpt_path).parent.parent.as_posix(), save_path=save_path)
+        self.config = self.config_cls.from_json('config.json', directory=Path(ckpt_path).parent.parent.as_posix(), save_path=save_path)
         device = self.get_device_from_accelerator(self.config.device_type)
         checkpoint = torch.load(ckpt_path, map_location=device, weights_only=True)
-        self.model = self.config.model_wrapper(self.config, self.get_input_size())
-        self.model.load_state_dict(checkpoint['state_dict'])
+        self.wrapper = self.config.model_wrapper(self.config, self.input_size)
+        self.wrapper.load_state_dict(checkpoint['state_dict'])
 
     def _train(self, train_mode: TrainerModes) -> None:
         ''' Dataloading '''
         train_dataloader, validation_dataloader = self.create_data_loader()
 
         ''' Model setup '''
-        in_dim = self.get_input_size()
-        self.model: wrapper.BaseWrapper = self.config.model_wrapper(self.config, in_dim)
+        in_dim = self.input_size
+        self.wrapper = self.config.model_wrapper(self.config, in_dim)
         
         ''' Model loading from save file '''
         if self.config.resume == True:
-            checkpoint = torch.load(self.config.save_path)
-            self.model.load_state_dict(checkpoint['state_dict'])
+            checkpoint = torch.load(self.get_full_save_path())
+            self.wrapper.load_state_dict(checkpoint['state_dict'])
             print(" >>> Loaded checkpoint")
 
         ''' Logging and checkpoint saving '''
@@ -184,11 +214,11 @@ class BaseTrainer:
                                  logger=logger, plugins=[LightningEnvironment()], callbacks=callbacks)
         
         ''' Train '''
-        trainer.fit(self.model, train_dataloader, validation_dataloader)
+        trainer.fit(self.wrapper, train_dataloader, validation_dataloader)
         
         ''' Saving config-file ''' 
         json_object = json.dumps(self.config.as_dict(), indent=4)
-        with open(os.path.join(trainer.log_dir, 'config.json'), 'w') as outfile:
+        with open(os.path.join(self.config.save_path, 'config.json'), 'w') as outfile:
             outfile.write(json_object)
     
     @staticmethod
@@ -206,21 +236,23 @@ class BaseTrainer:
             raise ValueError(f"Unable to map accelerator: {accelerator}")
 
 
-class VertexTrainer(BaseTrainer):
-    config_cls: type[config.VertexConfig] = config.VertexConfig
-
+class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertexV2, wrapper.VertexWrapper]):
     def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, test_ratio: float = 0.2, 
                  config_dir: str = 'configs', config_kwargs: dict[str, Any] = {}):
         super().__init__(project_name, config_name, subconfig_name, test_ratio, config_dir, config_kwargs)
-
-    def pre_train(self):
+    
+    @property
+    def input_size(self) -> int:
+        return self.dataset[0][1].shape[0]
+    
+    def pre_train(self) -> None:
         torch.set_float32_matmul_precision('high')
     
-    def get_input_size(self) -> int:
-        return self.dataset[0][1].shape[0]
-
-    def _predict(self, vertex: torch.Tensor, axis: int = 3) -> np.ndarray:
-        result = np.zeros_like(vertex)
+    def _predict(self, vertex: torch.Tensor, axis: int = 3, encode_only: bool = False) -> np.ndarray:
+        if encode_only:
+            result = np.empty((vertex.shape[0], vertex.shape[1], self.config.hidden_dims[-1]))
+        else:
+            result = np.zeros_like(vertex)
         for i_cnt in range(vertex.shape[0]):
             for j_cnt in range(vertex.shape[1]):
                 r_cnt = random.randint(0, vertex.shape[2] - 1)
@@ -240,7 +272,10 @@ class VertexTrainer(BaseTrainer):
                 if self.config.positional_encoding:
                     pos = torch.tensor([i, j, r], dtype=torch.float32).to('cpu')
                     full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
-                pred = self.model(full_input).detach().numpy()
+                if encode_only:
+                    pred = self.wrapper.model.encode(full_input).detach().numpy()
+                else:
+                    pred = self.wrapper(full_input).detach().numpy()
                 if axis == 1:
                     result[:, j, r] = pred
                 elif axis == 2:
@@ -248,4 +283,12 @@ class VertexTrainer(BaseTrainer):
                 elif axis == 3:
                     result[i, j, :] = pred
                 del dim1, dim2, dim3, full_input
+        if encode_only:
+            fp = os.path.join(self.config.save_path, 'latent_space.npy')
+            np.save(fp, result)
         return result
+    
+    def load_latent_space(self) -> np.ndarray|None:
+        fp = os.path.join(self.config.save_path, 'latent_space.npy')
+        if os.path.exists(fp):
+            return np.load(fp)

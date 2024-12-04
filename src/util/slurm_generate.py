@@ -16,9 +16,17 @@ class SlurmOptions:
 
 
 def create_train_script(project_name: str, repo_path: str, trainer: str|None = None, trainer_kwargs: dict[str, Any]|None = None):
-    
     s = f"""
+    import sys, os
+    sys.path.append(os.getcwd())
 
+    from src.trainer import TrainerModes, {trainer}
+
+
+    def train():
+        trainer = {trainer}('{project_name}', '{trainer_kwargs['config_name']}', '{trainer_kwargs['subconfig_name']}')
+        trainer.train(train_mode=TrainerModes.SLURM)
+    
     """
     with open(Path(repo_path, f'train_scripts/{project_name}/train_{project_name}.py'), 'w') as f:
         f.write(s)

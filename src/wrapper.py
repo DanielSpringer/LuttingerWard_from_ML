@@ -1,18 +1,27 @@
+from typing import Generic, TypeVar
+
 import numpy as np
 import lightning as L
 import torch
 
-from . import config
+from . import config, models
 
 
-class BaseWrapper(L.LightningModule):
+S = TypeVar('S', bound=models.BaseModule)
+T = TypeVar('T', bound=config.Config)
+
+
+class BaseWrapper(L.LightningModule, Generic[S, T]):
     def __init__(self, config: config.Config, in_dim: int|np.ndarray):
         super().__init__()
-        self.model = config.model(config, in_dim)
+        self.model: S = config.model(config, in_dim)
         self.criterion: torch.nn = config.get_criterion()
-        self.config = config
+        self.config: T = config
     
-    def forward(self, batch: torch.Tensor):
+    def __call__(self, *args, **kwds) -> torch.Tensor:
+        return super().__call__(*args, **kwds)
+    
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
         return self.model(batch)
     
     def get_inputs_and_targets(self, batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
@@ -47,12 +56,12 @@ class BaseWrapper(L.LightningModule):
         # TODO: check parameter stability
         return {"optimizer": optimizer}
     
-    def load_model_state(self, path: str):
+    def load_model_state(self, path: str) -> None:
         checkpoint = torch.load(path, map_location='cuda:0')
         self.model.load_state_dict(checkpoint['state_dict'])
 
 
-class VertexWrapper(BaseWrapper):
+class VertexWrapper(BaseWrapper[models.AutoEncoderVertex, config.VertexConfig]):
     ''' Wrapper for the vertex compression '''
     def __init__(self, config: config.VertexConfig, in_dim: int):
         super().__init__(config, in_dim)

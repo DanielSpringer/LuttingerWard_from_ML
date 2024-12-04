@@ -4,7 +4,7 @@ import os
 import pydoc
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Generic, Type, TypeVar, TYPE_CHECKING
 
 from lightning.pytorch.callbacks.callback import Callback
 from torch.nn import Module
@@ -12,8 +12,15 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 
+if TYPE_CHECKING:
+    from . import wrapper, models, load_data
+R = TypeVar('R', bound='models.BaseModule')
+S = TypeVar('S', bound='wrapper.BaseWrapper')
+T = TypeVar('T', bound='load_data.FilebasedDataset')
+
+
 @dataclass
-class Config:
+class Config(Generic[R, S, T]):
     model_name: str = 'BaseModule'
     _model_wrapper: str = 'BaseWrapper'
     resume: bool = False
@@ -24,7 +31,7 @@ class Config:
     _data_loader: str = 'torch.utils.data.DataLoader'
     
     # model architecture
-    hidden_dims: list[int]|None = None
+    hidden_dims: list[int] = field(default_factory=lambda: [])
     out_dim: int = 128
 
     # training
@@ -38,11 +45,11 @@ class Config:
 
     # torch modules
     _criterion: str = 'torch.nn.MSELoss'
-    criterion_kwargs: dict[str, Any]|None = None
+    criterion_kwargs: dict[str, Any] = field(default_factory=lambda: {})
     _optimizer: str = 'torch.optim.AdamW'
-    optimizer_kwargs: dict[str, Any]|None = None
+    optimizer_kwargs: dict[str, Any] = field(default_factory=lambda: {})
     _activation = 'torch.nn.ReLU'
-    activation_kwargs: dict[str, Any]|None = None
+    activation_kwargs: dict[str, Any] = field(default_factory=lambda: {})
 
     # lightning callbacks
     _model_checkpoint: str = 'ModelCheckpoint'
@@ -52,7 +59,7 @@ class Config:
         'mode': 'min',          # 'min' for minimizing the validation loss
         'verbose': True
     })
-    _callbacks: list[str]|None = None
+    _callbacks: list[str] = field(default_factory=lambda: [])
     callbacks_kwargs: dict[str, dict[str, Any]] = field(default_factory=lambda: {
         'EarlyStopping': {
             'monitor': 'val_loss',  # Monitor validation loss
@@ -88,11 +95,11 @@ class Config:
         return conf
     
     @property
-    def model(self) -> type[Module]:
+    def model(self) -> Type[R]:
         return self.resolve_objectname(self.model_name, 'src.models')
 
     @property
-    def model_wrapper(self) -> type:
+    def model_wrapper(self) -> Type[S]:
         return self.resolve_objectname(self._model_wrapper, 'src.wrapper')
     
     @model_wrapper.setter
@@ -100,7 +107,7 @@ class Config:
         self._model_wrapper = value
     
     @property
-    def dataset(self) -> type:
+    def dataset(self) -> Type[T]:
         return self.resolve_objectname(self._dataset, 'src.load_data')
     
     @dataset.setter
@@ -184,7 +191,7 @@ class Config:
         """Get a list of instantiations of the callback class-objects using `self.callbacks_kwargs` as arguments.
         Use `kwargs` to overwrite arguments set in `self.callbacks_kwargs`. 
         Attention: The `kwargs`-argument is a dictionary of kwarg-dictionaries using the callback-class-names as keys."""
-        return [cb(**dict(self.callbacks_kwargs[cb_name], **kwargs.get(cb_name, {}))) for cb_name, cb in zip(self._callbacks, self.callbacks)]
+        return [cb(**dict(self.callbacks_kwargs[cb.__name__], **kwargs.get(cb.__name__, {}))) for cb in self.callbacks]
     
     @staticmethod
     def resolve_objectpath(obj_fqn: str) -> type:
@@ -219,8 +226,7 @@ class Config:
     def _instantiate_type(self, name: str, **kwargs) -> Any:
         """Instantiate a class-object using the kwargs from the corresponding class-attribute. 
         Kwargs from the class-attribute can be overwritten by providing kwrags in the method-call."""
-        attr_kwargs = getattr(self, name + '_kwargs') or {}
-        attr_kwargs = dict(attr_kwargs, **kwargs)
+        attr_kwargs = dict(getattr(self, name + '_kwargs'), **kwargs)
         return getattr(self, name)(**attr_kwargs)
     
     def __repr__(self):
@@ -245,7 +251,7 @@ class Config:
             json.dump(save_dict, f, indent=4)
 
 
-class VertexConfig(Config):
+class VertexConfig(Config['models.AutoEncoderVertex','wrapper.VertexWrapper', 'load_data.AutoEncoderVertexV2']):
     construction_axis: int = 3
     sample_count_per_vertex: int = 2000
     positional_encoding: bool = True
