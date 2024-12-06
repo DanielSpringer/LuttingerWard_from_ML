@@ -1,5 +1,6 @@
 import glob
 import random
+
 from abc import ABC, abstractmethod
 from copy import deepcopy
 
@@ -15,7 +16,7 @@ from . import config
 
 class FilebasedDataset(Dataset, ABC):
     @abstractmethod
-    def __init__(self, config: config.Config, subset: int|float = 1.0, shuffle: bool = True):
+    def __init__(self, config: config.Config):
         """
         :param config: A Config instance.
         :type config: config.Config
@@ -196,19 +197,24 @@ class Dataset_ae_vertex_analysis(Dataset):
 
 
 class AutoEncoderVertexV2(FilebasedDataset):
-    def __init__(self, config: config.Config, subset: int|float = 1.0, shuffle: bool = True):
+    def __init__(self, config: config.VertexConfig):
         self.data_in_indices: torch.Tensor = torch.tensor([])
         self.data_in_slices: torch.Tensor = torch.tensor([])
         length = -1
 
-        # Iterate through all files in given directory
+        # Subsample files
         file_paths = glob.glob(f"{config.path_train}/*.h5")
-        n_files = len(file_paths)
-        if type(subset) == float:
-            subset = int(n_files * subset)
-        if subset < n_files and shuffle:
-            file_paths = random.sample(file_paths, min(subset, 1))
-        for file_path in glob.glob(f"{config.path_train}/*.h5"):
+        subset = config.subset
+        if subset is not None:
+            n_files = len(file_paths)
+            if type(subset) == float:
+                subset = int(n_files * subset)
+            if subset < n_files and config.subset_shuffle:
+                random.seed(config.subset_seed)
+                file_paths = random.sample(file_paths, max(subset, 1))
+        
+        # Iterate through all files in given directory
+        for file_path in file_paths:
             # Get vertex and create slices in each of the 3 dimensions
             full_vertex = self.load_from_file(file_path)
             length = full_vertex.shape[0]

@@ -21,6 +21,7 @@ T = TypeVar('T', bound='load_data.FilebasedDataset')
 
 @dataclass
 class Config(Generic[R, S, T]):
+    _base_dir: str = Path(__file__).parent.parent.as_posix()
     model_name: str = 'BaseModule'
     _model_wrapper: str = 'BaseWrapper'
     resume: bool = False
@@ -29,6 +30,10 @@ class Config(Generic[R, S, T]):
     path_train: str = ''
     _dataset: str = 'FilebasedDataset'
     _data_loader: str = 'torch.utils.data.DataLoader'
+    test_ratio: float = 0.2
+    subset: int|float|None = None
+    subset_shuffle: bool = True
+    subset_seed: int = None
     
     # model architecture
     hidden_dims: list[int] = field(default_factory=lambda: [])
@@ -70,7 +75,8 @@ class Config(Generic[R, S, T]):
     })
     
     @classmethod
-    def from_json(cls, config_name: str, subconfig_name: str|None = None, directory: str = 'configs', **kwargs):
+    def from_json(cls, config_name: str, subconfig_name: str|None = None, 
+                  directory: str = 'configs', **kwargs):
         """
         Creates a class containing all training parameters from a config-JSON. 
         Add kwargs to add attributes or overwrite attributes from the config-JSON.
@@ -82,10 +88,11 @@ class Config(Generic[R, S, T]):
                                Required if the file contains multiple cofigurations. (defaults to None)
         :type subconfig_name: str | None, optional
         
-        :param directory: Relative path to the directory of the config-file. (defaults to 'configs')
+        :param directory: Path to the directory of the config-file. (defaults to 'configs')
         :type directory: str, optional
         """
-        with open(Path(directory, config_name)) as f:
+        directory = Path(cls._base_dir, directory)
+        with open(directory / config_name) as f:
             config: dict[str, Any] = json.load(f)
         if subconfig_name is not None:
             config = config[subconfig_name]
@@ -94,6 +101,10 @@ class Config(Generic[R, S, T]):
         for key, value in config.items():
             setattr(conf, key.lower(), value)
         return conf
+
+    @property
+    def base_dir(self) -> Path:
+        return Path(self._base_dir)
     
     @property
     def model(self) -> Type[R]:

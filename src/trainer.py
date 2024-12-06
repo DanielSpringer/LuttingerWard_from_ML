@@ -34,7 +34,7 @@ class TrainerModes(Enum):
 class BaseTrainer(Generic[T, S, R]):
     config_cls: type[T] = T.__bound__
 
-    def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, test_ratio: float = 0.2, 
+    def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, 
                  config_dir: str = 'configs', config_kwargs: dict[str, Any] = {}):
         """
         Main class for training and using a model.
@@ -52,7 +52,7 @@ class BaseTrainer(Generic[T, S, R]):
         :param test_ratio: Test split ratio between 0 and 1. (defaults to 0.2)
         :type test_ratio: float, optional
         
-        :param config_dir: Relative path to the directory of the config-files. (defaults to 'configs')
+        :param config_dir: Path to the directory of the config-files. (defaults to 'configs')
         :type config_dir: str, optional
         
         :param config_kwargs: Additional kwargs that are applied when loading the config-file.  
@@ -61,7 +61,6 @@ class BaseTrainer(Generic[T, S, R]):
         """
         self.project_name = project_name
         self.subconfig_name = subconfig_name
-        self.test_ratio = test_ratio
 
         self.config: T = self.config_cls.from_json(config_name, subconfig_name, config_dir, **config_kwargs)
         self.dataset: S = self.config.dataset(self.config)
@@ -121,7 +120,7 @@ class BaseTrainer(Generic[T, S, R]):
 
     def create_data_loader(self) -> tuple[DataLoader, DataLoader]:
         """Create DataLoader. Overwrite for custom data loading."""
-        train_set, validation_set = random_split(self.dataset, [1 - self.test_ratio, self.test_ratio], 
+        train_set, validation_set = random_split(self.dataset, [1 - self.config.test_ratio, self.config.test_ratio], 
                                                  generator=torch.Generator().manual_seed(42))
         train_dataloader = self.data_loader(train_set, batch_size=self.config.batch_size, shuffle=True, 
                                             num_workers=8, persistent_workers=True, pin_memory=True)
@@ -140,14 +139,14 @@ class BaseTrainer(Generic[T, S, R]):
         """Overwrite for customized prediction."""
         input = torch.tensor(new_data, dtype=torch.float32).to('cpu')
         pred = self.wrapper(input).detach().numpy()
-        fp = os.path.join(self.config.save_path, f'{Path(new_data_path).stem}_prediction.npy')
+        fp = self.get_full_save_path() / f'{Path(new_data_path).stem}_prediction.npy'
         np.save(fp, pred)
         return pred
     
-    def get_full_save_path(self, save_path: str|None = None) -> str:
-        if not save_path:
+    def get_full_save_path(self, save_path: str|None = None) -> Path:
+        if save_path is None:
             save_path = self.config.save_path
-        return os.path.join(self.config.save_dir, self.project_name, save_path)
+        return self.config.base_dir / self.config.save_dir / self.project_name / save_path
     
     @property
     def save_prefix(self) -> str:
@@ -178,7 +177,7 @@ class BaseTrainer(Generic[T, S, R]):
         else:
             save_path = save_path or self.config.save_path
             ckpt_path = self.get_full_save_path(save_path)
-            ckpt_files = glob.glob(os.path.join(ckpt_path, '**/*.ckpt'), recursive=True)
+            ckpt_files = glob.glob((ckpt_path / '**/*.ckpt').as_posix(), recursive=True)
             ckpt_path = max(ckpt_files, key=os.path.getctime)
         print(f" >>> Load checkpoint from '{ckpt_path}'")
         self.load_config(Path(ckpt_path).parent.parent.as_posix())
@@ -224,14 +223,14 @@ class BaseTrainer(Generic[T, S, R]):
         
         ''' Saving config-file ''' 
         json_object = json.dumps(self.config.as_dict(), indent=4)
-        with open(os.path.join(self.config.save_path, 'config.json'), 'w') as outfile:
+        with open(self.get_full_save_path() / 'config.json', 'w') as outfile:
             outfile.write(json_object)
     
     def _load_npy(self, npy_type: str, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
         if save_path:
             self.load_config(save_path)
         if not npy_path:
-            npy_path = max(Path(self.config.save_path).glob(f'*_{npy_type}.npy'), key=os.path.getctime)
+            npy_path = max(self.get_full_save_path().glob(f'*_{npy_type}.npy'), key=os.path.getctime)
         if os.path.exists(npy_path):
             return np.load(npy_path)
     
@@ -254,9 +253,9 @@ class BaseTrainer(Generic[T, S, R]):
 
 
 class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertexV2, wrapper.VertexWrapper]):
-    def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, test_ratio: float = 0.2, 
+    def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, 
                  config_dir: str = 'configs', config_kwargs: dict[str, Any] = {}):
-        super().__init__(project_name, config_name, subconfig_name, test_ratio, config_dir, config_kwargs)
+        super().__init__(project_name, config_name, subconfig_name, config_dir, config_kwargs)
     
     @property
     def input_size(self) -> int:
@@ -265,10 +264,13 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
     def pre_train(self) -> None:
         torch.set_float32_matmul_precision('high')
     
-    def predict(self, new_data_path, save_path = None, model_path = None, load_model = False, encode_only: bool = False):
-        return super().predict(new_data_path, save_path, model_path, load_model, encode_only=encode_only)
+    def predict(self, vertex_path: str, save_path = None, model_path = None, load_model = False, 
+                encode_only: bool = False):
+        return super().predict(vertex_path, save_path, model_path, load_model, 
+                               encode_only=encode_only)
     
-    def _predict(self, vertex: torch.Tensor, new_data_path: str, axis: int = 3, encode_only: bool = False) -> np.ndarray:
+    def _predict(self, vertex: torch.Tensor, vertex_path: str, axis: int = 3, 
+                 encode_only: bool = False) -> np.ndarray:
         if encode_only:
             result = np.empty((vertex.shape[0], vertex.shape[1], self.config.hidden_dims[-1]))
         else:
@@ -303,13 +305,16 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
                 elif axis == 3:
                     result[i, j, :] = pred
                 del dim1, dim2, dim3, full_input
+        
+        # save results to disk
+        vertex_name = Path(vertex_path).stem
         if encode_only:
-            fp = os.path.join(self.config.save_path, f'{Path(new_data_path).stem}_latentspace.npy')
-            np.save(fp, result)
+            fp = self.get_full_save_path() / f'{vertex_name}_latentspace.npy'
         else:
-            fp = os.path.join(self.config.save_path, f'{Path(new_data_path).stem}_prediction.npy')
-            np.save(fp, result)
+            fp = self.get_full_save_path() / f'{vertex_name}_prediction.npy'
+        np.save(fp, result)
         return result
     
-    def load_latentspace(self, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
+    def load_latentspace(self, save_path: str|None = None, 
+                         npy_path: str|None = None) -> np.ndarray|None:
         return self._load_npy('prediction', save_path, npy_path)
