@@ -13,7 +13,6 @@ dist
 *.pdf
 *.csv
 *.pt
-slurm
 .neptune
 events.*
 tmp

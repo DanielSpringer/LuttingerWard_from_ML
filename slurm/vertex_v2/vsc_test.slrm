@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+#SBATCH -J vertex_v2
+#SBATCH -N 1
+#SBATCH --mail-type=BEGIN    # first have to state the type of event to occur 
+#SBATCH --mail-user=<email@address.at>    # and then your email address
+
+#SBATCH --partition=zen3_0512_a100x2
+#SBATCH --qos zen3_0512_a100x2
+#SBATCH --ntasks-per-node=128
+#SBATCH --nodes=1
+#SBATCH --time=01:00:00
+
+FILES=(/gpfs/data/fs71925/shepp123/anaconda3/*)
+source /gpfs/data/fs71925/shepp123/anaconda3/bin/activate
+conda init bash
+conda activate conda_ml24_1
+
+srun python /gpfs/data/fs71925/shepp123/LuttingerWard_from_ML/train_scripts/vertex_v2/train_vertex_v2.py

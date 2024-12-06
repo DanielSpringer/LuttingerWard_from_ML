@@ -20,5 +20,23 @@
         "construction_axis": 3,
         "sample_count_per_vertex": 2000,
         "positional_encoding": true
+    },
+    "SLURM_CONFIG": {
+        "project_name": "vertex_v2", 
+        "script_name": "vsc_test", 
+        "pyenv_dir": "/gpfs/data/fs71925/shepp123/anaconda3",
+        "pyenv_name": "conda_ml24_1", 
+        "path_to_repo": "/gpfs/data/fs71925/shepp123", 
+        "trainer": "VertexTrainer", 
+        "trainer_kwargs": {
+            "project_name": "vertex_v2", 
+            "config_name": "confmod_auto_encoder_v2.json", 
+            "subconfig_name": "AUTO_ENCODER_VERTEX_V2", 
+            "config_kwargs": {
+                "subset": 10, 
+                "subset_shuffle": true, 
+                "subset_seed": 42
+            }
+        }
     }
 }
