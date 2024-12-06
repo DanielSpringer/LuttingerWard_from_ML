@@ -1,9 +1,9 @@
 import importlib
 import json
-import os
 import pydoc
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Generic, Type, TypeVar, TYPE_CHECKING
 
 from lightning.pytorch.callbacks.callback import Callback
@@ -85,7 +85,8 @@ class Config(Generic[R, S, T]):
         :param directory: Relative path to the directory of the config-file. (defaults to 'configs')
         :type directory: str, optional
         """
-        config: dict[str, Any] = json.load(open(os.path.join(directory, config_name)))
+        with open(Path(directory, config_name)) as f:
+            config: dict[str, Any] = json.load(f)
         if subconfig_name is not None:
             config = config[subconfig_name]
         config.update(kwargs)

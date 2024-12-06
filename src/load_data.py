@@ -14,6 +14,22 @@ from . import config
 
 
 class FilebasedDataset(Dataset, ABC):
+    @abstractmethod
+    def __init__(self, config: config.Config, subset: int|float = 1.0, shuffle: bool = True):
+        """
+        :param config: A Config instance.
+        :type config: config.Config
+        
+        :param subset: Number of data items to load.
+                       Either as integer to specify the absolute count or as float to specifiy the percentage of the existing data. 
+                       Minimum items loaded is 1. (defaults to 1.0)
+        :type subset: int | float, optional
+        
+        :param shuffle: If loading a subset, determines if items are selected from the directory in alphabetical order or randomly. 
+                        (defaults to True)
+        :type shuffle: bool, optional
+        """
+    
     @staticmethod
     @abstractmethod
     def load_from_file(path: str) -> torch.Tensor:
@@ -180,12 +196,18 @@ class Dataset_ae_vertex_analysis(Dataset):
 
 
 class AutoEncoderVertexV2(FilebasedDataset):
-    def __init__(self, config: config.VertexConfig):
+    def __init__(self, config: config.Config, subset: int|float = 1.0, shuffle: bool = True):
         self.data_in_indices: torch.Tensor = torch.tensor([])
         self.data_in_slices: torch.Tensor = torch.tensor([])
         length = -1
 
         # Iterate through all files in given directory
+        file_paths = glob.glob(f"{config.path_train}/*.h5")
+        n_files = len(file_paths)
+        if type(subset) == float:
+            subset = int(n_files * subset)
+        if subset < n_files and shuffle:
+            file_paths = random.sample(file_paths, min(subset, 1))
         for file_path in glob.glob(f"{config.path_train}/*.h5"):
             # Get vertex and create slices in each of the 3 dimensions
             full_vertex = self.load_from_file(file_path)

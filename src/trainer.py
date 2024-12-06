@@ -109,7 +109,7 @@ class BaseTrainer(Generic[T, S, R]):
         if self.wrapper is None or load_model or save_path or model_path:
             self.load_model(save_path, model_path)
         self.wrapper.model.eval()
-        return self._predict(new_data, **kwargs)
+        return self._predict(new_data, new_data_path, **kwargs)
 
     def pre_train(self) -> None:
         """Overwrite to perform operations before the main training"""
@@ -136,10 +136,13 @@ class BaseTrainer(Generic[T, S, R]):
         self.config.save_path = logger.log_dir
         return logger
 
-    def _predict(self, new_data: np.ndarray, **kwargs) -> np.ndarray:
+    def _predict(self, new_data: np.ndarray, new_data_path: str, **kwargs) -> np.ndarray:
         """Overwrite for customized prediction."""
         input = torch.tensor(new_data, dtype=torch.float32).to('cpu')
-        return self.wrapper(input).detach().numpy()
+        pred = self.wrapper(input).detach().numpy()
+        fp = os.path.join(self.config.save_path, f'{Path(new_data_path).stem}_prediction.npy')
+        np.save(fp, pred)
+        return pred
     
     def get_full_save_path(self, save_path: str|None = None) -> str:
         if not save_path:
@@ -149,6 +152,9 @@ class BaseTrainer(Generic[T, S, R]):
     @property
     def save_prefix(self) -> str:
         return f"save_{self.subconfig_name}_BS{self.config.batch_size}_"
+
+    def load_config(self, save_path: str) -> None:
+        self.config = self.config_cls.from_json('config.json', directory=save_path, save_path=save_path)
 
     def load_model(self, save_path: str|None = None, model_path: str|None = None) -> None:
         """
@@ -165,7 +171,7 @@ class BaseTrainer(Generic[T, S, R]):
         :type model_path: str | None, optional
         """
         assert model_path or save_path or self.config.save_path, "No save_path found in the config-file, please provide a save_path or model_path."
-        if Path(model_path).is_absolute():
+        if model_path and Path(model_path).is_absolute():
             ckpt_path = model_path
         elif model_path:
             ckpt_path = self.get_full_save_path(model_path)
@@ -174,8 +180,8 @@ class BaseTrainer(Generic[T, S, R]):
             ckpt_path = self.get_full_save_path(save_path)
             ckpt_files = glob.glob(os.path.join(ckpt_path, '**/*.ckpt'), recursive=True)
             ckpt_path = max(ckpt_files, key=os.path.getctime)
-        save_path = Path(ckpt_path).parent.parent.relative_to(Path.cwd() / self.config.save_dir / self.project_name).as_posix()
-        self.config = self.config_cls.from_json('config.json', directory=Path(ckpt_path).parent.parent.as_posix(), save_path=save_path)
+        print(f" >>> Load checkpoint from '{ckpt_path}'")
+        self.load_config(Path(ckpt_path).parent.parent.as_posix())
         device = self.get_device_from_accelerator(self.config.device_type)
         checkpoint = torch.load(ckpt_path, map_location=device, weights_only=True)
         self.wrapper = self.config.model_wrapper(self.config, self.input_size)
@@ -221,6 +227,17 @@ class BaseTrainer(Generic[T, S, R]):
         with open(os.path.join(self.config.save_path, 'config.json'), 'w') as outfile:
             outfile.write(json_object)
     
+    def _load_npy(self, npy_type: str, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
+        if save_path:
+            self.load_config(save_path)
+        if not npy_path:
+            npy_path = max(Path(self.config.save_path).glob(f'*_{npy_type}.npy'), key=os.path.getctime)
+        if os.path.exists(npy_path):
+            return np.load(npy_path)
+    
+    def load_prediction(self, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
+        return self._load_npy('prediction', save_path, npy_path)
+    
     @staticmethod
     def get_device_from_accelerator(accelerator: str) -> str:
         mapping = {
@@ -248,7 +265,10 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
     def pre_train(self) -> None:
         torch.set_float32_matmul_precision('high')
     
-    def _predict(self, vertex: torch.Tensor, axis: int = 3, encode_only: bool = False) -> np.ndarray:
+    def predict(self, new_data_path, save_path = None, model_path = None, load_model = False, encode_only: bool = False):
+        return super().predict(new_data_path, save_path, model_path, load_model, encode_only=encode_only)
+    
+    def _predict(self, vertex: torch.Tensor, new_data_path: str, axis: int = 3, encode_only: bool = False) -> np.ndarray:
         if encode_only:
             result = np.empty((vertex.shape[0], vertex.shape[1], self.config.hidden_dims[-1]))
         else:
@@ -284,11 +304,12 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
                     result[i, j, :] = pred
                 del dim1, dim2, dim3, full_input
         if encode_only:
-            fp = os.path.join(self.config.save_path, 'latent_space.npy')
+            fp = os.path.join(self.config.save_path, f'{Path(new_data_path).stem}_latentspace.npy')
+            np.save(fp, result)
+        else:
+            fp = os.path.join(self.config.save_path, f'{Path(new_data_path).stem}_prediction.npy')
             np.save(fp, result)
         return result
     
-    def load_latent_space(self) -> np.ndarray|None:
-        fp = os.path.join(self.config.save_path, 'latent_space.npy')
-        if os.path.exists(fp):
-            return np.load(fp)
+    def load_latentspace(self, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
+        return self._load_npy('prediction', save_path, npy_path)
