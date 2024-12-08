@@ -51,9 +51,14 @@ Create new ML-project by deriving classes from the provided base classes and ove
    - Overwrite methods where custom behaviour is required.
 5. Create a trainer-class if custom behaviour is required:
    - Add a new class to `/src/trainer.py`, inheriting from `src.trainer.BaseTrainer`.
-   ##- Assign the corresponding Config-class to the `config_cls` class attribute.
    - Overwrite methods where custom behaviour is required.
-6. Use the `create_slurm_script` function in `src.util.slurm_generate` to create a slurm-script in `/slurm/<project_name>/` and a train-script in `train_scripts/<project_name>/`.
+6. Use `src/util/slurm_generate.py` to create a slurm-script in `/slurm/<project_name>/` and a train-script in `train_scripts/<project_name>/`:
+   - The `create`-function takes settings from function arguments.
+   - The `create_from_config`-function takes settings from the models config-JSON from a subsection with the given key.
+   - Running the file directly from command line uses the given config-JSON:
+     ```shell
+     python src/util/slurm_generate.py path/to/config/json #SLURM_CONFIG
+     ```
 
 see `ML_framework_demo.ipynb` for example usage.
 

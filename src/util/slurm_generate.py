@@ -109,16 +109,19 @@ srun python {train_script_path}
     (fdir / f'{script_name}.slrm').write_text(s)
 
 
-def create_from_config(config_file: str|Path):
+def create_from_config(config_file: str|Path, slurm_config_name: str = 'SLURM_CONFIG') -> None:
     """
-    Reads the "SLURM_CONFIG" section from a config-JSON and runs `create` from the settings contained.
+    Reads the section with the key `slurm_config_name` from a config-JSON and runs `create` from the settings contained.
 
     :param config_file: Path to config-JSON
     :type config_file: str | Path
+
+    :param slurm_config_name: Name of the section in the config-JSON to read the settings from. (defaults to 'SLURM_CONFIG')
+    :type slurm_config_name: str, optional
     """
     with open(config_file) as f:
         config: dict[str, Any] = json.load(f)
-    config = config['SLURM_CONFIG']
+    config = config[slurm_config_name]
     create(**config)
 
 
