@@ -253,10 +253,6 @@ class BaseTrainer(Generic[T, S, R]):
 
 
 class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertexV2, wrapper.VertexWrapper]):
-    def __init__(self, project_name: str, config_name: str, subconfig_name: str|None = None, 
-                 config_dir: str = 'configs', config_kwargs: dict[str, Any] = {}):
-        super().__init__(project_name, config_name, subconfig_name, config_dir, config_kwargs)
-    
     @property
     def input_size(self) -> int:
         return self.dataset[0][1].shape[0]
@@ -287,10 +283,10 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
                 else:
                     raise NotImplementedError("Axis not implemented")
 
-                dim1 = vertex[i, j, :]
-                dim2 = vertex[i, :, r]
-                dim3 = vertex[:, j, r]
-                full_input = torch.tensor([*dim1, *dim2, *dim3], dtype=torch.float32).to('cpu')
+                full_input = torch.tensor([*vertex[i, j, :],   # k3
+                                           *vertex[i, :, r],   # k2
+                                           *vertex[:, j, r]],  # k1
+                                          dtype=torch.float32).to('cpu')
                 if self.config.positional_encoding:
                     pos = torch.tensor([i, j, r], dtype=torch.float32).to('cpu')
                     full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
@@ -304,7 +300,7 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
                     result[i, :, r] = pred
                 elif axis == 3:
                     result[i, j, :] = pred
-                del dim1, dim2, dim3, full_input
+                del full_input
         
         # save results to disk
         vertex_name = Path(vertex_path).stem
@@ -318,3 +314,63 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
     def load_latentspace(self, save_path: str|None = None, 
                          npy_path: str|None = None) -> np.ndarray|None:
         return self._load_npy('prediction', save_path, npy_path)
+
+
+class VertexTrainer24x6(VertexTrainer):
+    def _predict(self, vertex: torch.Tensor, vertex_path: str, axis: int = 3, 
+                 encode_only: bool = False) -> np.ndarray:
+        if encode_only:
+            result = np.empty((vertex.shape[0], vertex.shape[1], self.config.hidden_dims[-1]))
+        else:
+            result = np.zeros_like(vertex)
+        
+        i_range, j_range, r_range = np.arange(vertex.shape[0]), np.arange(vertex.shape[1]), np.arange(vertex.shape[2])
+        for i_cnt in i_range:
+            for j_cnt in j_range:
+                r_cnt = random.randint(0, vertex.shape[2] - 1)
+                if axis == 1:
+                    i, j, r = r_cnt, i_cnt, j_cnt
+                elif axis == 2:
+                    i, j, r = i_cnt, r_cnt, j_cnt
+                elif axis == 3:
+                    i, j, r = i_cnt, j_cnt, r_cnt
+                else:
+                    raise NotImplementedError("Axis not implemented")
+
+                k1x, k1y = i % self.dataset.n_freq, i // self.dataset.n_freq
+                k2x, k2y = j % self.dataset.n_freq, j // self.dataset.n_freq
+                k3x, k3y = r % self.dataset.n_freq, r // self.dataset.n_freq
+                full_input = torch.tensor([
+                    *vertex[k1x + 24 * k1y, k2x + 24 * k2y, r_range % self.n_freq == k3x],   # k3x
+                    *vertex[k1x + 24 * k1y, k2x + 24 * k2y, r_range // self.n_freq == k3y],  # k3y
+                    *vertex[k1x + 24 * k1y, r_range % self.n_freq == k2x, k3x + 24 * k3y],   # k2x
+                    *vertex[k1x + 24 * k1y, r_range // self.n_freq == k2y, k3x + 24 * k3y],  # k2x
+                    *vertex[r_range % self.n_freq == k1x, k2x + 24 * k2y, k3x + 24 * k3y],   # k1x
+                    *vertex[r_range // self.n_freq == k1y, k2x + 24 * k2y, k3x + 24 * k3y]   # k1y 
+                ], dtype=torch.float32).to('cpu')
+
+                if self.config.positional_encoding:
+                    pos = torch.tensor([k1x, k1y, k2x, k2y, k3x, k3y], dtype=torch.float32).to('cpu')
+                    full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
+                if encode_only:
+                    pred = self.wrapper.model.encode(full_input).detach().numpy()
+                else:
+                    pred = self.wrapper(full_input).detach().numpy()
+                
+                # TODO
+                if axis == 1:
+                    result[:, j, r] = pred
+                elif axis == 2:
+                    result[i, :, r] = pred
+                elif axis == 3:
+                    result[i, j, :] = pred
+                del full_input
+        
+        # save results to disk
+        vertex_name = Path(vertex_path).stem
+        if encode_only:
+            fp = self.get_full_save_path() / f'{vertex_name}_latentspace.npy'
+        else:
+            fp = self.get_full_save_path() / f'{vertex_name}_prediction.npy'
+        np.save(fp, result)
+        return result

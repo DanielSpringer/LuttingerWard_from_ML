@@ -197,10 +197,17 @@ class Dataset_ae_vertex_analysis(Dataset):
 
 
 class AutoEncoderVertexV2(FilebasedDataset):
+    # matrix parameters
+    n_freq = 24
+    space_dim = 2
+    k_dim = 3
+    dim = space_dim * k_dim
+    length = n_freq**space_dim
+    target_length = length
+    
     def __init__(self, config: config.VertexConfig):
         self.data_in_indices: torch.Tensor = torch.tensor([])
         self.data_in_slices: torch.Tensor = torch.tensor([])
-        length = -1
 
         # Subsample files
         file_paths = glob.glob(f"{config.path_train}/*.h5")
@@ -216,13 +223,10 @@ class AutoEncoderVertexV2(FilebasedDataset):
         # Iterate through all files in given directory
         for file_path in file_paths:
             # Get vertex and create slices in each of the 3 dimensions
-            full_vertex = self.load_from_file(file_path)
-            length = full_vertex.shape[0]
-            indices = random.sample(range(length ** 3), config.sample_count_per_vertex)
-            indices = [(x % length, (x // length) % length, (x // (length**2)) % length) for x in indices]
+            vertex = self.load_from_file(file_path)
 
-            # Create and merge all row combinations
-            merged_slices = list([*full_vertex[x, y, :], *full_vertex[x, :, z], *full_vertex[:, y, z]] for x, y, z in indices)
+            # sample random indices of a 576^3 matrix and merge all rows through the sampled indices
+            merged_slices, indices = self._sample(vertex, config)
         
             # Append result to data_in
             self.data_in_slices = torch.cat([self.data_in_slices, 
@@ -230,21 +234,31 @@ class AutoEncoderVertexV2(FilebasedDataset):
             self.data_in_indices = torch.cat([self.data_in_indices, 
                                         torch.tensor(indices, dtype=torch.float32)], axis=0)
             assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
-        axis = config.construction_axis
-
+        
         # Construct target data
+        axis = config.construction_axis
         match axis:
             case 1: 
-                self.data_target = deepcopy(self.data_in_slices[:, 2*length:])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
+                self.data_target = deepcopy(self.data_in_slices[:, 2*self.target_length:])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*self.target_length:])
             case 2:
-                self.data_target = deepcopy(self.data_in_slices[:,length:2*length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
+                self.data_target = deepcopy(self.data_in_slices[:, self.target_length:2*self.target_length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][self.target_length:2*self.target_length])
             case 3:
-                self.data_target = deepcopy(self.data_in_slices[:, :length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
+                self.data_target = deepcopy(self.data_in_slices[:, :self.target_length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][:self.target_length])
             case _:
                 raise NotImplementedError("Axis invalid")
+    
+    def _sample(self, vertex: np.ndarray, config: config.VertexConfig) -> tuple[np.ndarray, np.ndarray]:
+        indices = random.sample(range(self.length**self.k_dim), config.sample_count_per_vertex)
+        indices = np.array([[(x // self.length**i) % self.length for i in range(self.k_dim)] for x in indices])
+
+        # Create and merge all row combinations
+        merged_slices = list([*vertex[x, y, :], 
+                              *vertex[x, :, z], 
+                              *vertex[:, y, z]] for x, y, z in indices)
+        return merged_slices, indices
 
     def __len__(self):
         return self.data_in_slices.shape[0]
@@ -260,6 +274,42 @@ class AutoEncoderVertexV2(FilebasedDataset):
             for name, data in f["V"].items():
                 if name.startswith("step"):
                     return data[()]
+
+
+class AutoEncoderVertex24x6(AutoEncoderVertexV2):
+    target_length = AutoEncoderVertexV2.space_dim * AutoEncoderVertexV2.n_freq
+
+    def _sample(self, vertex: np.ndarray, config: config.VertexConfig) -> tuple[np.ndarray, np.ndarray]:
+        # sample `sample_count_per_vertex` random indices of a 24^6 matrix
+        indices = random.sample(range(self.n_freq**self.dim), config.sample_count_per_vertex)
+        indices = np.array([[(x // self.n_freq**i) % self.n_freq for i in range(self.dim)] for x in indices])
+
+        # Retrive and merge all row combinations by the sampled indices
+        l_idcs = np.arange(self.length)
+        merged_slices = np.array([[*vertex[k1x + 24 * k1y, k2x + 24 * k2y, l_idcs % self.n_freq == k3x],   # k3x
+                                   *vertex[k1x + 24 * k1y, k2x + 24 * k2y, l_idcs // self.n_freq == k3y],  # k3y
+                                   *vertex[k1x + 24 * k1y, l_idcs % self.n_freq == k2x, k3x + 24 * k3y],   # k2x
+                                   *vertex[k1x + 24 * k1y, l_idcs // self.n_freq == k2y, k3x + 24 * k3y],  # k2y
+                                   *vertex[l_idcs % self.n_freq == k1x, k2x + 24 * k2y, k3x + 24 * k3y],   # k1x
+                                   *vertex[l_idcs // self.n_freq == k1y, k2x + 24 * k2y, k3x + 24 * k3y]]  # k1y
+                                   for k1x, k1y, k2x, k2y, k3x, k3y in indices])
+        return merged_slices, indices
+
+    def _extract_target(self, axis: int) -> torch.Tensor:
+        length = self.space_dim * self.n_freq
+        match axis:
+            case 1: 
+                data_target = deepcopy(self.data_in_slices[:, 2*length:])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
+            case 2:
+                data_target = deepcopy(self.data_in_slices[:, length:2*length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
+            case 3:
+                data_target = deepcopy(self.data_in_slices[:, :length])
+                assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
+            case _:
+                raise NotImplementedError("Axis invalid")
+        return data_target
 
 
 class Dataset_ae_split(Dataset):

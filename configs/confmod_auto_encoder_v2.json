@@ -38,5 +38,46 @@
                 "subset_seed": 42
             }
         }
+    },
+
+    "AUTO_ENCODER_VERTEX_24X6": {
+        "MODEL_NAME": "AutoEncoderVertex",
+        "model_wrapper": "VertexWrapper",
+        "resume": false,
+
+        "path_train": "../frgs",
+        "dataset": "AutoEncoderVertex24x6",
+
+        "batch_size": 20,
+        "learning_rate": 1e-4,
+        "weight_decay": 1e-5,
+        "epochs": 100,
+        "hidden_dims": [1024, 512, 256, 128],
+        "out_dim": 576,
+        "device_type": "gpu",
+        "devices": 1,
+        "num_nodes": 1,
+        
+        "construction_axis": 3,
+        "sample_count_per_vertex": 2000,
+        "positional_encoding": true
+    },
+    "SLURM_CONFIG_24X6": {
+        "project_name": "vertex_v2", 
+        "script_name": "vsc_24x6", 
+        "pyenv_dir": "/gpfs/data/fs71925/shepp123/anaconda3",
+        "pyenv_name": "conda_ml24_1", 
+        "path_to_repo": "/gpfs/data/fs71925/shepp123", 
+        "trainer": "VertexTrainer24x6", 
+        "trainer_kwargs": {
+            "project_name": "vertex_v2", 
+            "config_name": "confmod_auto_encoder_v2.json", 
+            "subconfig_name": "AUTO_ENCODER_VERTEX_24X6", 
+            "config_kwargs": {
+                "subset": 10, 
+                "subset_shuffle": true, 
+                "subset_seed": 42
+            }
+        }
     }
 }
