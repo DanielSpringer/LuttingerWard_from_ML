@@ -286,30 +286,15 @@ class AutoEncoderVertex24x6(AutoEncoderVertexV2):
 
         # Retrive and merge all row combinations by the sampled indices
         l_idcs = np.arange(self.length)
-        merged_slices = np.array([[*vertex[k1x + 24 * k1y, k2x + 24 * k2y, l_idcs % self.n_freq == k3x],   # k3x
-                                   *vertex[k1x + 24 * k1y, k2x + 24 * k2y, l_idcs // self.n_freq == k3y],  # k3y
-                                   *vertex[k1x + 24 * k1y, l_idcs % self.n_freq == k2x, k3x + 24 * k3y],   # k2x
-                                   *vertex[k1x + 24 * k1y, l_idcs // self.n_freq == k2y, k3x + 24 * k3y],  # k2y
-                                   *vertex[l_idcs % self.n_freq == k1x, k2x + 24 * k2y, k3x + 24 * k3y],   # k1x
-                                   *vertex[l_idcs // self.n_freq == k1y, k2x + 24 * k2y, k3x + 24 * k3y]]  # k1y
+        x_range, y_range = l_idcs % self.n_freq, l_idcs // self.n_freq
+        merged_slices = np.array([[*vertex[x_range == k1x, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1x
+                                   *vertex[y_range == k1y, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1y
+                                   *vertex[k1x + self.n_freq * k1y, x_range == k2x, k3x + self.n_freq * k3y],   # k2x
+                                   *vertex[k1x + self.n_freq * k1y, y_range == k2y, k3x + self.n_freq * k3y],   # k2y
+                                   *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, x_range == k3x],   # k3x
+                                   *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, y_range == k3y]]   # k3y
                                    for k1x, k1y, k2x, k2y, k3x, k3y in indices])
         return merged_slices, indices
-
-    def _extract_target(self, axis: int) -> torch.Tensor:
-        length = self.space_dim * self.n_freq
-        match axis:
-            case 1: 
-                data_target = deepcopy(self.data_in_slices[:, 2*length:])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
-            case 2:
-                data_target = deepcopy(self.data_in_slices[:, length:2*length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
-            case 3:
-                data_target = deepcopy(self.data_in_slices[:, :length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
-            case _:
-                raise NotImplementedError("Axis invalid")
-        return data_target
 
 
 class Dataset_ae_split(Dataset):

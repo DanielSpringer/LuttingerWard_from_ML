@@ -34,23 +34,14 @@ class AutoEncoderVertex(BaseModule[config.VertexConfig]):
             nn.Linear(self.in_dim, config.hidden_dims[0])
         )
 
-        self.encoder = nn.Sequential(
-            self.activation,
-            nn.Linear(config.hidden_dims[0], config.hidden_dims[1]),
-            self.activation,
-            nn.Linear(config.hidden_dims[1], config.hidden_dims[2]),
-            self.activation,
-            nn.Linear(config.hidden_dims[2], config.hidden_dims[3])
-        )
+        encoder_layers = [m for i in range(len(config.hidden_dims) - 1) for m in 
+                          (self.activation, nn.Linear(config.hidden_dims[i], config.hidden_dims[i + 1]))]
+        self.encoder = nn.Sequential(*encoder_layers)
 
-        self.decoder = nn.Sequential(
-            self.activation,
-            nn.Linear(config.hidden_dims[3], config.hidden_dims[2]),
-            self.activation,
-            nn.Linear(config.hidden_dims[2], config.hidden_dims[1]),
-            self.activation,
-            nn.Linear(config.hidden_dims[1], config.out_dim)
-        )
+        decoder_dims = reversed(config.hidden_dims[1:]) + [config.out_dim]
+        decoder_layers = [m for i in range(len(decoder_dims) - 1) for m in 
+                          (self.activation, nn.Linear(decoder_dims[i], decoder_dims[i + 1]))]
+        self.decoder = nn.Sequential(*decoder_layers)
 
     def forward(self, data_in) -> torch.Tensor:
         x = self.encode(data_in)

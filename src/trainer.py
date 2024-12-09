@@ -265,12 +265,34 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
         return super().predict(vertex_path, save_path, model_path, load_model, 
                                encode_only=encode_only)
     
+    def _prepare_prediction_input(self, vertex: torch.Tensor, i: int, j: int, r: int) -> tuple[torch.Tensor, tuple]:
+        full_input = torch.tensor([*vertex[i, j, :],   # k3
+                                   *vertex[i, :, r],   # k2
+                                   *vertex[:, j, r]],  # k1
+                                   dtype=torch.float32).to('cpu')
+        if self.config.positional_encoding:
+            pos = torch.tensor([i, j, r], dtype=torch.float32).to('cpu')
+            full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
+        return full_input, (None,)
+    
+    def _copy_prediction_to_matrix(self, pred: np.ndarray, result: np.ndarray, i: int, j: int, r: int, 
+                                   properties: tuple, axis: int) -> None:
+        if axis == 1:
+            result[:, j, r] = pred
+        elif axis == 2:
+            result[i, :, r] = pred
+        elif axis == 3:
+            result[i, j, :] = pred
+    
     def _predict(self, vertex: torch.Tensor, vertex_path: str, axis: int = 3, 
                  encode_only: bool = False) -> np.ndarray:
         if encode_only:
-            result = np.empty((vertex.shape[0], vertex.shape[1], self.config.hidden_dims[-1]))
+            shape = list(vertex.shape)
+            shape[axis - 1] = self.config.hidden_dims[-1]
+            result = np.empty(tuple(shape))
         else:
             result = np.zeros_like(vertex)
+        
         for i_cnt in range(vertex.shape[0]):
             for j_cnt in range(vertex.shape[1]):
                 r_cnt = random.randint(0, vertex.shape[2] - 1)
@@ -283,23 +305,16 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
                 else:
                     raise NotImplementedError("Axis not implemented")
 
-                full_input = torch.tensor([*vertex[i, j, :],   # k3
-                                           *vertex[i, :, r],   # k2
-                                           *vertex[:, j, r]],  # k1
-                                          dtype=torch.float32).to('cpu')
-                if self.config.positional_encoding:
-                    pos = torch.tensor([i, j, r], dtype=torch.float32).to('cpu')
-                    full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
+                full_input, properties = self._prepare_prediction_input(vertex, i, j, r)
+                
+                # get prediction of length 576 for a k axis
                 if encode_only:
                     pred = self.wrapper.model.encode(full_input).detach().numpy()
                 else:
                     pred = self.wrapper(full_input).detach().numpy()
-                if axis == 1:
-                    result[:, j, r] = pred
-                elif axis == 2:
-                    result[i, :, r] = pred
-                elif axis == 3:
-                    result[i, j, :] = pred
+                
+                # feed back predictions into 576^3-matrix
+                self._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis)
                 del full_input
         
         # save results to disk
@@ -317,16 +332,54 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
 
 
 class VertexTrainer24x6(VertexTrainer):
+    _r_range: torch.Tensor = None
+    
+    def _prepare_prediction_input(self, vertex: torch.Tensor, i: int, j: int, r: int) -> tuple[torch.Tensor, tuple]:
+        k1x, k1y = i % self.dataset.n_freq, i // self.dataset.n_freq
+        k2x, k2y = j % self.dataset.n_freq, j // self.dataset.n_freq
+        k3x, k3y = r % self.dataset.n_freq, r // self.dataset.n_freq
+        x_range, y_range = self._r_range % self.dataset.n_freq, self._r_range // self.dataset.n_freq
+        full_input = torch.tensor([
+            *vertex[x_range == k1x, k2x, k3x],   # k1x
+            *vertex[y_range == k1y, k2y, k3y],   # k1y
+            *vertex[k1x, x_range == k2x, k3x],   # k2x
+            *vertex[k1y, y_range == k2y, k3y],   # k2y
+            *vertex[k1x, k2x, x_range == k3x],   # k3x
+            *vertex[k1y, k2y, y_range == k3y],   # k3y
+        ], dtype=torch.float32).to('cpu')
+        if self.config.positional_encoding:
+            pos = torch.tensor([k1x, k1y, k2x, k2y, k3x, k3y], dtype=torch.float32).to('cpu')
+            full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
+        return full_input, (k1x, k1y, k2x, k2y, k3x, k3y, x_range, y_range)
+    
+    def _copy_prediction_to_matrix(self, pred: np.ndarray, result: np.ndarray, i: int, j: int, r: int, 
+                                   properties: tuple, axis: int) -> None:
+        k1x, k1y, k2x, k2y, k3x, k3y, x_range, y_range = properties
+        kx, ky = pred[:self.dataset.n_freq], pred[self.dataset.n_freq:]  # lengths: 24, 24
+        if axis == 1:
+            result[x_range == k1x, j, r] = kx
+            result[y_range == k1y, j, r] = ky
+        elif axis == 2:
+            result[i, x_range == k2x, r] = kx
+            result[i, y_range == k2y, r] = ky
+        elif axis == 3:
+            result[i, j, x_range == k3x] = kx
+            result[i, j, y_range == k3y] = ky
+
     def _predict(self, vertex: torch.Tensor, vertex_path: str, axis: int = 3, 
                  encode_only: bool = False) -> np.ndarray:
+        self._r_range = np.arange(vertex.shape[2])
+        #return super(VertexTrainer)._predict(vertex, vertex_path, axis, encode_only)
+
         if encode_only:
-            result = np.empty((vertex.shape[0], vertex.shape[1], self.config.hidden_dims[-1]))
+            shape = list(vertex.shape)
+            shape[axis - 1] = self.config.hidden_dims[-1]
+            result = np.empty(tuple(shape))
         else:
             result = np.zeros_like(vertex)
         
-        i_range, j_range, r_range = np.arange(vertex.shape[0]), np.arange(vertex.shape[1]), np.arange(vertex.shape[2])
-        for i_cnt in i_range:
-            for j_cnt in j_range:
+        for i_cnt in range(vertex.shape[0]):
+            for j_cnt in range(vertex.shape[1]):
                 r_cnt = random.randint(0, vertex.shape[2] - 1)
                 if axis == 1:
                     i, j, r = r_cnt, i_cnt, j_cnt
@@ -337,33 +390,16 @@ class VertexTrainer24x6(VertexTrainer):
                 else:
                     raise NotImplementedError("Axis not implemented")
 
-                k1x, k1y = i % self.dataset.n_freq, i // self.dataset.n_freq
-                k2x, k2y = j % self.dataset.n_freq, j // self.dataset.n_freq
-                k3x, k3y = r % self.dataset.n_freq, r // self.dataset.n_freq
-                full_input = torch.tensor([
-                    *vertex[k1x + 24 * k1y, k2x + 24 * k2y, r_range % self.n_freq == k3x],   # k3x
-                    *vertex[k1x + 24 * k1y, k2x + 24 * k2y, r_range // self.n_freq == k3y],  # k3y
-                    *vertex[k1x + 24 * k1y, r_range % self.n_freq == k2x, k3x + 24 * k3y],   # k2x
-                    *vertex[k1x + 24 * k1y, r_range // self.n_freq == k2y, k3x + 24 * k3y],  # k2x
-                    *vertex[r_range % self.n_freq == k1x, k2x + 24 * k2y, k3x + 24 * k3y],   # k1x
-                    *vertex[r_range // self.n_freq == k1y, k2x + 24 * k2y, k3x + 24 * k3y]   # k1y 
-                ], dtype=torch.float32).to('cpu')
-
-                if self.config.positional_encoding:
-                    pos = torch.tensor([k1x, k1y, k2x, k2y, k3x, k3y], dtype=torch.float32).to('cpu')
-                    full_input = (pos.unsqueeze(0), full_input.unsqueeze(0))
+                full_input, properties = self._prepare_prediction_input(vertex, i, j, r)
+                
+                # get prediction of length 48 for a k_x and k_y axis
                 if encode_only:
                     pred = self.wrapper.model.encode(full_input).detach().numpy()
                 else:
                     pred = self.wrapper(full_input).detach().numpy()
                 
-                # TODO
-                if axis == 1:
-                    result[:, j, r] = pred
-                elif axis == 2:
-                    result[i, :, r] = pred
-                elif axis == 3:
-                    result[i, j, :] = pred
+                # feed back predictions into 576^3-matrix
+                self._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis)
                 del full_input
         
         # save results to disk
