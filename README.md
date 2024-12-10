@@ -60,6 +60,11 @@ Create new ML-project by deriving classes from the provided base classes and ove
      python src/util/slurm_generate.py path/to/config/json #SLURM_CONFIG
      ```
 
+**Tipps & Tricks:**
+- don't copy classes: derive them and overwrite methods where necessary
+- don't duplicate code: if a method needs partial customization, try to split it into multiple methods and overwrite only the necessary ones
+- variables from one class can be easily shared to other classes by writing it into the config-instance
+
 see `ML_framework_demo.ipynb` for example usage.
 
 
