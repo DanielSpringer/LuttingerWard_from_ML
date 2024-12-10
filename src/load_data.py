@@ -201,11 +201,12 @@ class AutoEncoderVertexV2(FilebasedDataset):
     n_freq = 24
     space_dim = 2
     k_dim = 3
-    dim = space_dim * k_dim
+    dim = k_dim
     length = n_freq**space_dim
     target_length = length
     
     def __init__(self, config: config.VertexConfig):
+        config.matrix_dim = self.dim
         self.data_in_indices: torch.Tensor = torch.tensor([])
         self.data_in_slices: torch.Tensor = torch.tensor([])
 
@@ -278,6 +279,7 @@ class AutoEncoderVertexV2(FilebasedDataset):
 
 class AutoEncoderVertex24x6(AutoEncoderVertexV2):
     target_length = AutoEncoderVertexV2.space_dim * AutoEncoderVertexV2.n_freq
+    dim = AutoEncoderVertexV2.space_dim * AutoEncoderVertexV2.k_dim
 
     def _sample(self, vertex: np.ndarray, config: config.VertexConfig) -> tuple[np.ndarray, np.ndarray]:
         # sample `sample_count_per_vertex` random indices of a 24^6 matrix
