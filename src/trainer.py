@@ -228,7 +228,7 @@ class BaseTrainer(Generic[T, S, R]):
     
     def _load_npy(self, npy_type: str, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
         if save_path:
-            self.load_config(save_path)
+            self.load_config(self.get_full_save_path(save_path))
         if not npy_path:
             npy_path = max(self.get_full_save_path().glob(f'*_{npy_type}.npy'), key=os.path.getctime)
         if os.path.exists(npy_path):
@@ -265,7 +265,8 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
         return super().predict(vertex_path, save_path, model_path, load_model, 
                                encode_only=encode_only)
     
-    def _prepare_prediction_input(self, vertex: torch.Tensor, i: int, j: int, r: int) -> tuple[torch.Tensor, tuple]:
+    def _prepare_prediction_input(self, vertex: torch.Tensor, i: int, j: int, r: int,
+                                  encode_only: bool) -> tuple[torch.Tensor, tuple]:
         full_input = torch.tensor([*vertex[i, j, :],   # k3
                                    *vertex[i, :, r],   # k2
                                    *vertex[:, j, r]],  # k1
@@ -314,7 +315,7 @@ class VertexTrainer(BaseTrainer[config.VertexConfig, load_data.AutoEncoderVertex
                     pred = self.wrapper(full_input).detach().numpy()
                 
                 # feed back predictions into 576^3-matrix
-                self._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis)
+                self._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis, encode_only)
                 del full_input
         
         # save results to disk
@@ -353,18 +354,26 @@ class VertexTrainer24x6(VertexTrainer):
         return full_input, (k1x, k1y, k2x, k2y, k3x, k3y, x_range, y_range)
     
     def _copy_prediction_to_matrix(self, pred: np.ndarray, result: np.ndarray, i: int, j: int, r: int, 
-                                   properties: tuple, axis: int) -> None:
-        k1x, k1y, k2x, k2y, k3x, k3y, x_range, y_range = properties
-        kx, ky = pred[:self.dataset.n_freq], pred[self.dataset.n_freq:]  # lengths: 24, 24
-        if axis == 1:
-            result[x_range == k1x, j, r] = kx
-            result[y_range == k1y, j, r] = ky
-        elif axis == 2:
-            result[i, x_range == k2x, r] = kx
-            result[i, y_range == k2y, r] = ky
-        elif axis == 3:
-            result[i, j, x_range == k3x] = kx
-            result[i, j, y_range == k3y] = ky
+                                   properties: tuple[int, int, int, int, int, int], axis: int,
+                                   encode_only: bool) -> None:
+        if encode_only:
+            super()._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis)
+        else:
+            k1x, k1y, k2x, k2y, k3x, k3y, x_range, y_range = properties
+            kx, ky = pred[:, :self.dataset.n_freq], pred[:, self.dataset.n_freq:]  # lengths: 24, 24
+            print(self.dataset.n_freq)
+            print('pred shapes: ', pred.shape, kx.shape, ky.shape)
+            print('range shapes: ', x_range.shape, y_range.shape)
+            print('res shapes: ', result[i, j, x_range == k3x].shape, result[i, j, y_range == k3y].shape)
+            if axis == 1:
+                result[x_range == k1x, j, r] = kx
+                result[y_range == k1y, j, r] = ky
+            elif axis == 2:
+                result[i, x_range == k2x, r] = kx
+                result[i, y_range == k2y, r] = ky
+            elif axis == 3:
+                result[i, j, x_range == k3x] = kx
+                result[i, j, y_range == k3y] = ky
 
     def _predict(self, vertex: torch.Tensor, vertex_path: str, axis: int = 3, 
                  encode_only: bool = False) -> np.ndarray:
@@ -399,7 +408,7 @@ class VertexTrainer24x6(VertexTrainer):
                     pred = self.wrapper(full_input).detach().numpy()
                 
                 # feed back predictions into 576^3-matrix
-                self._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis)
+                self._copy_prediction_to_matrix(pred, result, i, j, r, properties, axis, encode_only)
                 del full_input
         
         # save results to disk
