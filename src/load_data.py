@@ -238,28 +238,26 @@ class AutoEncoderVertexV2(FilebasedDataset):
         
         # Construct target data
         axis = config.construction_axis
-        match axis:
-            case 1: 
-                self.data_target = deepcopy(self.data_in_slices[:, 2*self.target_length:])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*self.target_length:])
-            case 2:
-                self.data_target = deepcopy(self.data_in_slices[:, self.target_length:2*self.target_length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][self.target_length:2*self.target_length])
-            case 3:
-                self.data_target = deepcopy(self.data_in_slices[:, :self.target_length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][:self.target_length])
-            case _:
-                raise NotImplementedError("Axis invalid")
+        assert axis <= self.dim, "Axis invalid"
+        idx_range = slice(self.target_length * (self.dim - axis), self.target_length * (self.dim - axis + 1))
+        self.data_target = deepcopy(self.data_in_slices[:, idx_range])
+        assert list(self.data_target[0]) == list(self.data_in_slices[0][idx_range])
     
     def _sample(self, vertex: np.ndarray, config: config.VertexConfig) -> tuple[np.ndarray, np.ndarray]:
         indices = random.sample(range(self.length**self.k_dim), config.sample_count_per_vertex)
         indices = np.array([[(x // self.length**i) % self.length for i in range(self.k_dim)] for x in indices])
 
         # Create and merge all row combinations
-        merged_slices = list([*vertex[x, y, :], 
-                              *vertex[x, :, z], 
-                              *vertex[:, y, z]] for x, y, z in indices)
+        merged_slices = list(self.get_vector_from_vertex(vertex, x, y, z) for x, y, z in indices)
         return merged_slices, indices
+    
+    @staticmethod
+    def get_vector_from_vertex(vertex: np.ndarray, x: int, y: int, z: int) -> list[np.ndarray]:
+        return [
+            *vertex[x, y, :], 
+            *vertex[x, :, z], 
+            *vertex[:, y, z],
+        ]
 
     def __len__(self):
         return self.data_in_slices.shape[0]
@@ -278,8 +276,8 @@ class AutoEncoderVertexV2(FilebasedDataset):
 
 
 class AutoEncoderVertex24x6(AutoEncoderVertexV2):
-    target_length = AutoEncoderVertexV2.space_dim * AutoEncoderVertexV2.n_freq
     dim = AutoEncoderVertexV2.space_dim * AutoEncoderVertexV2.k_dim
+    target_length = AutoEncoderVertexV2.n_freq # * AutoEncoderVertexV2.space_dim
 
     def _sample(self, vertex: np.ndarray, config: config.VertexConfig) -> tuple[np.ndarray, np.ndarray]:
         # sample `sample_count_per_vertex` random indices of a 24^6 matrix
@@ -289,14 +287,28 @@ class AutoEncoderVertex24x6(AutoEncoderVertexV2):
         # Retrive and merge all row combinations by the sampled indices
         l_idcs = np.arange(self.length)
         x_range, y_range = l_idcs % self.n_freq, l_idcs // self.n_freq
-        merged_slices = np.array([[*vertex[x_range == k1x, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1x
-                                   *vertex[y_range == k1y, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1y
-                                   *vertex[k1x + self.n_freq * k1y, x_range == k2x, k3x + self.n_freq * k3y],   # k2x
-                                   *vertex[k1x + self.n_freq * k1y, y_range == k2y, k3x + self.n_freq * k3y],   # k2y
-                                   *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, x_range == k3x],   # k3x
-                                   *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, y_range == k3y]]   # k3y
-                                   for k1x, k1y, k2x, k2y, k3x, k3y in indices])
+        merged_slices = np.array([[
+            *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, y_range == k3y],   # k3y
+            *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, x_range == k3x],   # k3x
+            *vertex[k1x + self.n_freq * k1y, y_range == k2y, k3x + self.n_freq * k3y],   # k2y
+            *vertex[k1x + self.n_freq * k1y, x_range == k2x, k3x + self.n_freq * k3y],   # k2x
+            *vertex[y_range == k1y, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1y
+            *vertex[x_range == k1x, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1x
+        ] for k1x, k1y, k2x, k2y, k3x, k3y in indices])
         return merged_slices, indices
+    
+    @staticmethod
+    def get_vector_from_vertex(vertex: np.ndarray, k1x: int, k1y: int, k2x: int, k2y: int, k3x: int, k3y: int, 
+                               x_range: np.ndarray, y_range: np.ndarray) -> list[np.ndarray]:
+        # ???
+        return [
+            *vertex[k1y, k2y, y_range == k3y],   # k3y
+            *vertex[k1x, k2x, x_range == k3x],   # k3x
+            *vertex[k1y, y_range == k2y, k3y],   # k2y
+            *vertex[k1x, x_range == k2x, k3x],   # k2x
+            *vertex[y_range == k1y, k2y, k3y],   # k1y
+            *vertex[x_range == k1x, k2x, k3x],   # k1x
+        ]
 
 
 class Dataset_ae_split(Dataset):
