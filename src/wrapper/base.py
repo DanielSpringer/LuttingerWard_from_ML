@@ -4,15 +4,16 @@ import numpy as np
 import lightning as L
 import torch
 
-from . import config, models
+from src.config import Config
+from src.models import BaseModule
 
 
-S = TypeVar('S', bound=models.BaseModule)
-T = TypeVar('T', bound=config.Config)
+S = TypeVar('S', bound=BaseModule)
+T = TypeVar('T', bound=Config)
 
 
 class BaseWrapper(L.LightningModule, Generic[S, T]):
-    def __init__(self, config: config.Config, in_dim: int|np.ndarray):
+    def __init__(self, config: Config, in_dim: int|np.ndarray):
         super().__init__()
         self.model: S = config.model(config, in_dim)
         self.criterion: torch.nn = config.get_criterion()
@@ -59,17 +60,3 @@ class BaseWrapper(L.LightningModule, Generic[S, T]):
     def load_model_state(self, path: str) -> None:
         checkpoint = torch.load(path, map_location='cuda:0')
         self.model.load_state_dict(checkpoint['state_dict'])
-
-
-class VertexWrapper(BaseWrapper[models.AutoEncoderVertex, config.VertexConfig]):
-    ''' Wrapper for the vertex compression '''
-    def __init__(self, config: config.VertexConfig, in_dim: int):
-        super().__init__(config, in_dim)
-        self.positional_encoding = config.positional_encoding
-    
-    def get_inputs_and_targets(self, batch: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        if self.positional_encoding:
-            inputs = (batch[0], batch[1])
-        else:
-            inputs = batch[1]
-        return inputs, batch[2].float()

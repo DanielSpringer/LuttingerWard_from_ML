@@ -1,30 +1,12 @@
-from typing import Generic, TypeVar
-
-import numpy as np
-
 import torch 
 from torch import nn
 
-from .. import config
+from src.config.vertex import *
+from . import BaseModule
 
 
-T = TypeVar('T', bound=config.Config)
-
-
-class BaseModule(nn.Module, Generic[T]):
-    def __init__(self, config: config.Config, in_dim: int|np.ndarray):
-        super().__init__()
-        self.config: T = config
-        self.activation = config.get_activation()
-        self.in_dim = in_dim
-
-    def forward(self, data_in) -> torch.Tensor:
-        """Forward method. Overwrite in derived class."""
-        raise NotImplementedError
-
-
-class AutoEncoderVertex(BaseModule[config.VertexConfig]):
-    def __init__(self, config: config.VertexConfig, in_dim: int):
+class AutoEncoderVertex(BaseModule[VertexConfig]):
+    def __init__(self, config: VertexConfig, in_dim: int):
         super().__init__(config, in_dim)
         self.matrix_dim = config.matrix_dim
         if config.positional_encoding:

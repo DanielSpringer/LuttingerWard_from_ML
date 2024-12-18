@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 
 
 if TYPE_CHECKING:
-    from . import wrapper, models, load_data
+    from src import wrapper, models, load_data
 R = TypeVar('R', bound='models.BaseModule')
 S = TypeVar('S', bound='wrapper.BaseWrapper')
 T = TypeVar('T', bound='load_data.FilebasedDataset')
@@ -21,7 +21,7 @@ T = TypeVar('T', bound='load_data.FilebasedDataset')
 
 @dataclass
 class Config(Generic[R, S, T]):
-    _base_dir: str = Path(__file__).parent.parent.as_posix()
+    _base_dir: str = Path(__file__).parent.parent.parent.as_posix()
     model_name: str = 'BaseModule'
     _model_wrapper: str = 'BaseWrapper'
     resume: bool = False
@@ -45,7 +45,7 @@ class Config(Generic[R, S, T]):
     weight_decay: float = 1e-05
     epochs: int = 1000
     device_type: str = 'gpu'
-    devices: int = 1
+    devices: int = 1          # >= <# devices (CPUs or GPUs) on partition> * `num_nodes`
     num_nodes: int = 1
 
     # torch modules
@@ -261,9 +261,3 @@ class Config(Generic[R, S, T]):
         save_dict = {self.model_name.upper(): self.as_dict()}
         with open(path, 'w') as f:
             json.dump(save_dict, f, indent=4)
-
-
-class VertexConfig(Config['models.AutoEncoderVertex','wrapper.VertexWrapper', 'load_data.AutoEncoderVertexV2']):
-    construction_axis: int = 3
-    sample_count_per_vertex: int = 2000
-    positional_encoding: bool = True
