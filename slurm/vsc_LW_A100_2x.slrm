@@ -19,4 +19,4 @@ conda init bash
 conda activate conda_ml
 
 # mpirun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_Prediction/code/train.py
-srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/code/train_2x.py
+srun python /gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/train_scripts/train_LW.py
