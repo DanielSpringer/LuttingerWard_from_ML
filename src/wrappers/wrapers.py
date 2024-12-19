@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/src/')
+sys.path.append('/home/fs71922/hessl3/data/ML_Luttinger/LuttingerWard_from_ML/src/')
 import torch 
 from torch import nn
 import json
@@ -8,6 +8,8 @@ from models import models
 import gc
 import numpy as np
 import functools
+from collections import OrderedDict
+from torch.func import functional_call, vmap, jacrev
 # from models import models as models
 # from wrapper_AE import *
 
@@ -285,25 +287,92 @@ class model_wraper_generic(L.LightningModule):
         return self.model(batch)
 
     def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        params = tuple_to_dict_parameters(self.model,tuple(self.model.parameters()))
         pred = self.forward(batch[0])
         target = batch[1].float()
+        print('pred',pred)
+        #print('params',self.model.named_parameters())
+        for name, param in self.model.named_parameters():
+            print(f"Parameter name: {name}")
+            print(param.data)  # The actual values of the parameter
+            print("-" * 50)  # Separator for clarity
+
         loss = self.criterion_mse(pred, target)
         self.log('train_loss', loss.item())
         self.train_loss = loss.item()
+
         return loss
 
     def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
         pred = self.forward(batch[0])
         target = batch[1].float()
         loss = self.criterion_mse(pred, target)
-        self.val_pred.append([target, pred])
-        # print(pred)
-        # print(target)
-        self.val_loss.append(loss)
+        #self.val_pred.append([target, pred])
+        #self.val_loss.append(loss)
         self.log('val_loss', loss.item(), prog_bar=True)
         self.validation_loss = loss.item()
-        # print(self.train_loss, self.validation_loss)
         return loss
+    #def on_validation_epoch_end(self):
+    #    print(torch.cuda.memory_summary())
+    #    print(torch.cuda.memory_allocated())
+
+    def configure_optimizers(self) -> dict:
+        optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.config['learning_rate'], weight_decay=self.config['weight_decay'])
+        return {"optimizer": optimizer}
+    
+    def load_model_state(self, PATH):
+        checkpoint = torch.load(PATH, map_location='cuda:0')
+        self.model.load_state_dict(checkpoint['state_dict'])
+
+
+#functions that are needed for autodifferentiation
+def tuple_to_dict_parameters(model: nn.Module, params: tuple[torch.nn.Parameter, ...]) -> OrderedDict[str, torch.nn.Parameter]:
+    keys = list(dict(model.named_parameters()).keys())
+    values = list(params)
+    return OrderedDict(({k:v for k,v in zip(keys, values)}))
+
+def f(x: torch.Tensor, params: dict[str, torch.nn.Parameter],model) -> torch.Tensor:
+    return functional_call(model, params, (x, ))
+
+
+#generic model with auto-differentiation
+class model_wraper_generic_AD(L.LightningModule):
+    ''' First part of convergence model. Wraper to train actual auto-encoding with automatic differentiation, i.e. the input is Green's function output is Luttinger Ward functional. '''
+    def __init__(self, config):
+        super().__init__()
+        module = __import__("models.models", fromlist=['object'])
+        self.model = getattr(module, config["MODEL_NAME"])(config)
+        self.criterion_mse = nn.MSELoss()
+        self.config = config
+        self.val_pred = []
+        self.val_loss = []
+        self.train_loss = 0
+        self.validation_loss = 0
+
+    def forward(self, batch: torch.Tensor):
+        return self.model(batch)
+
+    def training_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        pred = self.forward(batch[0])
+        
+        params = tuple_to_dict_parameters(self.model,tuple(self.model.parameters()))
+        jac = vmap(jacrev(f), in_dims=(0,None,None))(batch[0],params,self.model)
+        Sig = torch.cat([jac[:,0,:int(batch[0].shape[1]/2)]+jac[:,1,int(batch[0].shape[1]/2):], jac[:,1,:int(batch[0].shape[1]/2)]-jac[:,0,int(batch[0].shape[1]/2):]],axis=1)/2
+        target = batch[1]
+        loss = self.criterion_mse(Sig, target)
+        self.log('train_loss', loss.item())
+        return loss
+
+    def validation_step(self, batch: torch.Tensor, batch_idx: int) -> torch.Tensor:
+        pred = self.forward(batch[0])
+        params = tuple_to_dict_parameters(self.model,tuple(self.model.parameters()))
+        jac = vmap(jacrev(f), in_dims=(0,None,None))(batch[0],params,self.model)
+        Sig = torch.cat([jac[:,0,:int(batch[0].shape[1]/2)]+jac[:,1,int(batch[0].shape[1]/2):], jac[:,1,:int(batch[0].shape[1]/2)]-jac[:,0,int(batch[0].shape[1]/2):]],axis=1)/2        
+        target = batch[1]
+        loss = self.criterion_mse(Sig, target)
+        self.log('val_loss', loss.item())
+        return loss
+   
 
     def configure_optimizers(self) -> dict:
         optimizer = torch.optim.AdamW(params=self.model.parameters(), lr=self.config['learning_rate'], weight_decay=self.config['weight_decay'])

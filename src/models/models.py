@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/daniel/Projects/RevMat/LuttingerWard_from_ML/')
+sys.path.append('/home/fs71922/hessl3/data/ML_Luttinger/LuttingerWard_from_ML/')
 
 # from code.models.model_AE import *
 # from code.models.model_FC import *
@@ -94,7 +94,73 @@ class auto_encoder(torch.nn.Module):
     def __init__(self, config):
         super(auto_encoder, self).__init__()
         self.config = config
-        self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
+        #self.activation = nn.ReLU() #nn.SiLU()# nn.LeakyReLU()
+        #self.activation = x2_Activation()
+        self.activation = xN_Activation(1.5)
+
+              
+        self.embedding = nn.Sequential(
+            nn.Linear(config["in_dim"], config["embedding_dim"])
+        )
+
+        self.encode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["embedding_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["encoder_dim"])
+        )
+
+        self.decode = nn.Sequential(
+            self.activation,
+            nn.Linear(config["encoder_dim"], config["hidden2_dim"]),
+            self.activation,
+            nn.Linear(config["hidden2_dim"], config["hidden1_dim"]),
+            self.activation,
+            nn.Linear(config["hidden1_dim"], config["out_dim"])
+            
+        )
+
+    def forward(self, data_in):
+        x = self.embedding(data_in)
+        x = self.encode(x)
+        x = self.decode(x)
+        return x
+    
+    
+class x2_Activation(nn.Module):
+    def __init__(self):
+        super(x2_Activation, self).__init__()
+        
+    def forward(self, x):
+        return torch.where(x < 0, torch.tensor(0.0, device=x.device, dtype=x.dtype), x * x/2)
+
+class x1_Activation(nn.Module):
+    def __init__(self):
+        super(x1_Activation, self).__init__()
+        
+    def forward(self, x):
+        return torch.where(x < 0, torch.tensor(0.0, device=x.device, dtype=x.dtype), x)
+
+class xN_Activation(nn.Module):
+    def __init__(self,N):
+        super(xN_Activation, self).__init__()
+        self.N = N
+
+    def forward(self, x):
+        x = torch.where(x < 0, torch.tensor(0.0, device=x.device, dtype=x.dtype), x)
+        return x**(self.N)
+        
+class auto_encoder_AD(torch.nn.Module):
+    def __init__(self, config):
+        super(auto_encoder_AD, self).__init__()
+        self.config = config
+        #self.activation = x2_Activation()
+        #self.activation = xN_Activation(1.5)
+        self.activation = nn.GELU()
+        #self.activation = nn.ReLU()
+        #self.activation = nn.Sigmoid()
 
         self.embedding = nn.Sequential(
             nn.Linear(config["in_dim"], config["embedding_dim"])

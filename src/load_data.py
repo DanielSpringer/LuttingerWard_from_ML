@@ -71,7 +71,7 @@ class Dataset_ae(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
-
+'''
 class Dataset_ae_vertex(Dataset):
     def __init__(self, config):
         self.data_in_indices: torch.Tensor = torch.tensor([])
@@ -102,7 +102,6 @@ class Dataset_ae_vertex(Dataset):
             assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
                 
         axis = config.get("construction_axis", 3)
-
         # Construct target data
         match axis:
             case 1: 
@@ -131,7 +130,7 @@ class Dataset_ae_vertex(Dataset):
             for name, data in f["V"].items():
                 if name.startswith("step"):
                     return data[()]
-        
+'''        
 class Dataset_ae_vertex_analysis(Dataset):
     def __init__(self, config):
         input_data = []
@@ -436,6 +435,24 @@ class Dataset_generic(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
+
+class Dataset_generic_complex(Dataset):
+    def __init__(self, config, dataset):
+        
+        ### MODIFY THIS PART ACCORDING TO YOUR DATA        
+        data_in = dataset[:,0]
+        data_target = dataset[:,1]
+        self.data_target = torch.cat([torch.tensor(data_target.real, dtype=torch.float32), torch.tensor(data_target.imag, dtype=torch.float32)], axis=1)
+        self.data_in = torch.cat([torch.tensor(data_in.real, dtype=torch.float32), torch.tensor(data_in.imag, dtype=torch.float32)], axis=1)
+        
+    def __len__(self):
+        return self.data_in.shape[0]
+
+    def __getitem__(self, idx):
+      if torch.is_tensor(idx):
+          idx = idx.tolist()
+      return self.data_in[idx], self.data_target[idx]
+
 
 
 class Dataset_graph_generic(Dataset):

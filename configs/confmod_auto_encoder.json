@@ -37,7 +37,7 @@
                 "MODEL_NAME": "encoder",
                 "MODEL_WRAPER": "model_wraper_generic",
                 "continue": false,
-                "SAVEPATH": "/home/daniel/Projects/RevMat/LuttingerWard_from_ML/saves/gather_noimp/save_encoder_BS5_2024-06-12/version_2/checkpoints/epoch=96-step=52186.ckpt",
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/gather_noimp/save_encoder_BS5_2024-06-12/version_2/checkpoints/epoch=96-step=52186.ckpt",
         
                 "PATH_TRAIN": "/home/daniel/Data/RevMat/gather_noimp.hdf5",
                 "DATA_LOADER": "Dataset_RevMat_ae",
@@ -65,26 +65,26 @@
         "AUTO_ENCODER_LW_metmet": {
                 "MODEL_NAME": "auto_encoder",
                 "MODEL_WRAPER": "model_wraper_generic",
-                "continue": true,
-                "SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/metallic_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-28/version_1/checkpoints/epoch=29-step=17100.ckpt",
+                "continue": false,
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/metallic_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-28/version_1/checkpoints/epoch=29-step=17100.ckpt",
         
-                "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/Strategy_2/U2c0_b30.0_metiso_1.hdf5",
+                "PATH_TRAIN": "/home/fs71922/hessl3/data/ML_Luttinger/data/GTrend/U2c0_b30_N250000.hdf5",
                 "TRAINDATA": "metallic/data/30.0",
                 "VALIDATIONDATA": "metallic/data/30.0",
                 "SPLIT": 0.8,
                 "DATA_LOADER": "Dataset_generic",
         
-                "batch_size": 5,
-                "learning_rate": 2e-6,
-                "weight_decay": 5e-8,
-                "epochs": 350,
+                "batch_size": 10,
+                "learning_rate": 1e-6,
+                "weight_decay": 1e-7,
+                "epochs": 300,
         
-                "in_dim": 200,
+                "in_dim": 1000,
                 "embedding_dim": 128,
                 "hidden1_dim": 96,
                 "hidden2_dim": 64,
                 "encoder_dim": 32,
-                "out_dim": 200,
+                "out_dim": 1000,
         
                 "device_type": "gpu",
                 "devices": 2,
@@ -94,32 +94,147 @@
         "AUTO_ENCODER_LW_isoiso": {
                 "MODEL_NAME": "auto_encoder",
                 "MODEL_WRAPER": "model_wraper_generic",
-                "continue": true,
-                "SAVEPATH": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/insulating_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-29/version_2/checkpoints/epoch=29-step=30930.ckpt",
+                "continue": false,
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/insulating_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-29/version_2/checkpoints/epoch=29-step=30930.ckpt",
         
-                "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/Strategy_2/U2c0_b30.0_metiso_1.hdf5",
+                "PATH_TRAIN": "/home/fs71922/hessl3/data/ML_Luttinger/data/GTrend/U2c0_b30_N250000.hdf5",
                 "TRAINDATA": "insulating/data/30.0",
                 "VALIDATIONDATA": "insulating/data/30.0",
                 "SPLIT": 0.8,
                 "DATA_LOADER": "Dataset_generic",
         
-                "batch_size": 5,
-                "learning_rate": 1e-5,
+                "batch_size": 10,
+                "learning_rate": 1e-6,
                 "weight_decay": 1e-7,
-                "epochs": 350,
+                "epochs": 300,
         
-                "in_dim": 200,
+                "in_dim": 1000,
                 "embedding_dim": 128,
                 "hidden1_dim": 96,
                 "hidden2_dim": 64,
                 "encoder_dim": 32,
-                "out_dim": 200,
+                "out_dim": 1000,
         
                 "device_type": "gpu",
-                "devices": 1,
+                "devices": 2,
                 "num_nodes": 1
                 },
         
+       	"AUTO_ENCODER_LW_AD_metmet": {
+                "MODEL_NAME": "auto_encoder_AD",
+                "MODEL_WRAPER": "model_wraper_generic_AD",
+                "continue": false,
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/metallic_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-28/version_1/checkpoints/epoch=29-step=17100.ckpt",
+        
+                "PATH_TRAIN": "/home/fs71922/hessl3/data/ML_Luttinger/data/GTrend/U2c0_b30_N250000.hdf5",
+                "TRAINDATA": "metallic/data/30.0",
+                "VALIDATIONDATA": "metallic/data/30.0",
+                "SPLIT": 0.8,
+                "DATA_LOADER": "Dataset_generic_complex",
+        
+                "batch_size": 10,
+                "learning_rate": 1e-6,
+                "weight_decay": 1e-7,
+                "epochs": 300,
+        
+                "in_dim": 2000,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "encoder_dim": 32,
+                "out_dim": 2,
+        
+                "device_type": "gpu",
+                "devices": 2,
+                "num_nodes": 1
+                },
+
+        "AUTO_ENCODER_LW_AD_isoiso": {
+                "MODEL_NAME": "auto_encoder_AD",
+                "MODEL_WRAPER": "model_wraper_generic_AD",
+                "continue": false,
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/insulating_only/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-29/version_2/checkpoints/epoch=29-step=30930.ckpt",
+        
+                "PATH_TRAIN": "/home/fs71922/hessl3/data/ML_Luttinger/data/GTrend/U2c0_b30_N250000.hdf5",
+                "TRAINDATA": "insulating/data/30.0",
+                "VALIDATIONDATA": "insulating/data/30.0",
+                "SPLIT": 0.8,
+                "DATA_LOADER": "Dataset_generic_complex",
+        
+                "batch_size": 10,
+                "learning_rate": 1e-6,
+                "weight_decay": 1e-7,
+                "epochs": 300,
+        
+                "in_dim": 2000,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "encoder_dim": 32,
+                "out_dim": 2,
+        
+                "device_type": "gpu",
+                "devices": 2,
+                "num_nodes": 1
+                },
+
+        "AUTO_ENCODER_LW_trans": {
+                "MODEL_NAME": "auto_encoder",
+                "MODEL_WRAPER": "model_wraper_generic",
+                "continue": false,
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/trans/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-28/version_1/checkpoints/epoch=29-step=17100.ckpt",
+        
+                "PATH_TRAIN": "/home/fs71922/hessl3/data/ML_Luttinger/data/SigmaTrans/U2c0_b30_N250000.hdf5",
+                "TRAINDATA": "metiso/data/30.0",
+                "VALIDATIONDATA": "transprox/data/30.0",
+                "SPLIT": 0.8,
+                "DATA_LOADER": "Dataset_generic",
+        
+                "batch_size": 10,
+                "learning_rate": 1e-6,
+                "weight_decay": 1e-7,
+                "epochs": 300,
+        
+                "in_dim": 1000,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "encoder_dim": 32,
+                "out_dim": 1000,
+        
+                "device_type": "gpu",
+                "devices": 2,
+                "num_nodes": 1
+                },
+
+        "AUTO_ENCODER_LW_AD_trans": {
+                "MODEL_NAME": "auto_encoder_AD",
+                "MODEL_WRAPER": "model_wraper_generic_AD",
+                "continue": false,
+                "SAVEPATH": "/home/fs71922/hessl3/data/ML_Luttinger/saves/trans/U2c0_b30.0_metiso_1/save_auto_encoder_BS5_2024-07-29/version_2/checkpoints/epoch=29-step=30930.ckpt",
+        
+                "PATH_TRAIN": "/home/fs71922/hessl3/data/ML_Luttinger/data/SigmaTrans/U2c0_b30_N250000.hdf5",
+                "TRAINDATA": "metiso/data/30.0",
+                "VALIDATIONDATA": "transprox/data/30.0",
+                "SPLIT": 0.8,
+                "DATA_LOADER": "Dataset_generic_complex",
+        
+                "batch_size": 10,
+                "learning_rate": 1e-6,
+                "weight_decay": 1e-7,
+                "epochs": 300,
+        
+                "in_dim": 2000,
+                "embedding_dim": 128,
+                "hidden1_dim": 96,
+                "hidden2_dim": 64,
+                "encoder_dim": 32,
+                "out_dim": 2,
+        
+                "device_type": "gpu",
+                "devices": 2,
+                "num_nodes": 1
+                },
 
 
         "AUTO_ENCODER_1": {
