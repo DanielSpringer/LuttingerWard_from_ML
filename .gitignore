@@ -23,3 +23,8 @@ lightning_logs
 saves
 __pycache__
 code/models/__pycache__/model_AE_FC.cpython-310.pyc
+slurm/vsc_LW_A100.slrm
+slurm/vsc_LW_devel.slrm
+
+.gitignore
+train_scripts/train_LW.py

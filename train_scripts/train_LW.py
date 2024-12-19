@@ -1,10 +1,11 @@
 #%%
 import sys
-sys.path.append('/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/src/')
+sys.path.append('/home/fs71922/hessl3/data/ML_Luttinger/LuttingerWard_from_ML/src/')
 import torch
 # from models import models as models
 # from wrappers import wrapers
 from torch.utils.data import DataLoader
+#sys.path.insert(1, '../src/');
 import load_data
 import datetime
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -37,14 +38,18 @@ def create_datasets(config):
     if config["TRAINDATA"]==config["VALIDATIONDATA"]:
         data = np.array(f[config["TRAINDATA"]])
         train, validation = torch.utils.data.random_split(data, [int(data.__len__()*config["SPLIT"]), int(data.__len__())-int(data.__len__()*config["SPLIT"])], generator=torch.Generator().manual_seed(42))
+    else:
+        train = np.array(f[config["TRAINDATA"]])
+        validation = np.array(f[config["VALIDATIONDATA"]])
+
     return train, validation
 
 
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
     ### TODO 
-    MODEL_NAME = "GNN_basis_2"
-    config = json.load(open('../configs/confmod_graph_neural_network_2.json'))[MODEL_NAME]
+    MODEL_NAME = "AUTO_ENCODER_LW_AD_trans"
+    config = json.load(open('../configs/confmod_auto_encoder.json'))[MODEL_NAME]
 
     ''' Dataloading '''
     train_data, validation_data = create_datasets(config)
@@ -73,14 +78,16 @@ def train():
         print(" >>> Loaded checkpoint")
 
 
+
     ''' Logging and saving '''
     DATA_NAME = os.path.splitext(os.path.basename(config["PATH_TRAIN"]))[0]
     print(" TRAIN DATA (slurm relevance) ")
     print(config["PATH_TRAIN"])
     print(DATA_NAME)
+    print(MODEL_NAME)
     
-    PATH = "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/saves/"
-    CONFIGURATION = f"{PATH}/SigmaTrans/metiso/{DATA_NAME}/save_{config['MODEL_NAME']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
+    PATH = "/home/fs71922/hessl3/data/ML_Luttinger/saves/"
+    CONFIGURATION = f"{PATH}/SigmaTrans/AD_GELU/{DATA_NAME}/save_{config['MODEL_NAME']}_BS{config['batch_size']}_{datetime.datetime.now().date()}"
     logger = TensorBoardLogger(PATH, name=CONFIGURATION)
     
     early_stop_callback = EarlyStopping(monitor="val_loss", mode="min", min_delta=0.00, patience=20, verbose=False)
@@ -93,7 +100,8 @@ def train():
                         accelerator=config["device_type"], 
                         devices=config["devices"], 
                         num_nodes=config["num_nodes"], 
-                        strategy='ddp', 
+                        #strategy='ddp', 
+                        strategy='ddp_find_unused_parameters_true',
                         logger=logger
                         # callbacks=[checkpoint_callback]
                         )
