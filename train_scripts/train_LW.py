@@ -40,17 +40,19 @@ def create_datasets(config):
         train, validation = torch.utils.data.random_split(data, [int(data.__len__()*config["SPLIT"]), int(data.__len__())-int(data.__len__()*config["SPLIT"])], generator=torch.Generator().manual_seed(42))
     else:
         train = np.array(f[config["TRAINDATA"]])
+        train_actual, _ = torch.utils.data.random_split(train, [int(train.__len__()*config["SPLIT"]), int(train.__len__())-int(train.__len__()*config["SPLIT"])], generator=torch.Generator().manual_seed(42))
         validation = np.array(f[config["VALIDATIONDATA"]])
-
-    return train, validation
+    return train_actual, validation
 
 
 def train():
     ### JSON File contains full information about entire run (model, data, hyperparameters)
     ### TODO 
-    MODEL_NAME = "AUTO_ENCODER_LW_AD_trans"
-    config = json.load(open('../configs/confmod_auto_encoder.json'))[MODEL_NAME]
-
+    MODEL_NAME = "GNN_basis"
+    config = json.load(open('../configs/confmod_graph_neural_network.json'))[MODEL_NAME]
+    # MODEL_NAME = "GNN_basis_2"
+    # config = json.load(open('../configs/confmod_graph_neural_network_2.json'))[MODEL_NAME]
+    print(config)
     ''' Dataloading '''
     train_data, validation_data = create_datasets(config)
     train_data = np.array(train_data)

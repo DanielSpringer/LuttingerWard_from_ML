@@ -5,7 +5,7 @@
         "PATH_TRAIN": "/gpfs/data/fs72150/springerd/Projects/LuttingerWard_from_ML/data/SigmaTrans/U2c0_b30_N250000.hdf5",
         "TRAINDATA": "metiso/data/30.0",
         "VALIDATIONDATA": "transprox/data/30.0",
-        "SPLIT": 0.8,
+        "SPLIT": 0.3,
         "DATA_LOADER": "Dataset_graph_generic",
 
         "continue": false,
@@ -16,7 +16,7 @@
         "batch_size":               1,
         "learning_rate":            1e-4,
         "weight_decay":             1e-7,
-        "epochs":                   20,
+        "epochs":                   100,
 
         "omega_steps":              300,
         "tau_steps":                300,
@@ -35,6 +35,6 @@
 
         "device_type": "gpu",
         "devices": 2,
-        "num_nodes": 1
+        "num_nodes": 2
     }
 }

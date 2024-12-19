@@ -646,9 +646,10 @@ class GNN_basis_2(torch.nn.Module):
             nn.Linear(self.vec_emb_hidden_dim, self.omega_steps))
 
     def forward(self, data): #, G):
-        edge_index = data["edge_index"][0]
-        x = data["node_feature"][0]
-        x1 = data["vectors"][0]
+        ### DOES THIS WORK FOR BATCHES???
+        edge_index = data["edge_index"][:]
+        x = data["node_feature"][:]
+        x1 = data["vectors"][:]
         
         # Not sure whether deepcopy is really needed...idea is to preserve basis vectors.
         # v_shape = int(x.shape[1]/2)

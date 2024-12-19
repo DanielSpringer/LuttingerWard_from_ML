@@ -71,66 +71,67 @@ class Dataset_ae(Dataset):
       if torch.is_tensor(idx):
           idx = idx.tolist()
       return self.data_in[idx], self.data_target[idx]
-'''
-class Dataset_ae_vertex(Dataset):
-    def __init__(self, config):
-        self.data_in_indices: torch.Tensor = torch.tensor([])
-        self.data_in_slices: torch.Tensor = torch.tensor([])
 
-        SAMPLE_COUNT = config["sample_count_per_vertex"]
+# class Dataset_ae_vertex(Dataset):
+#     def __init__(self, config):
+#         self.data_in_indices: torch.Tensor = torch.tensor([])
+#         self.data_in_slices: torch.Tensor = torch.tensor([])
 
-        # Iterate through all files in given directory
-        for file_path in glob.glob(f"{config['PATH_TRAIN']}/*.h5"):
+#         SAMPLE_COUNT = config["sample_count_per_vertex"]
 
-            # Get vertex and create slices in each of the 3 dimensions
-            full_vertex = self.get_vertex_from_filepath(file_path)
+#         # Iterate through all files in given directory
+#         for file_path in glob.glob(f"{config['PATH_TRAIN']}/*.h5"):
 
-            length = 576
-            indices = random.sample(range(length ** 3), SAMPLE_COUNT)
-            indices = [(x % length, (x // length) % length, (x // (length**2)) % length) for x in indices]
+#             # Get vertex and create slices in each of the 3 dimensions
+#             full_vertex = self.get_vertex_from_filepath(file_path)
 
-            # Create and merge all row combinations
-            merged_slices = list([*full_vertex[x, y, :], *full_vertex[x, :, z], *full_vertex[:, y, z]] for x, y, z in indices)
+#             length = 576
+#             indices = random.sample(range(length ** 3), SAMPLE_COUNT)
+#             indices = [(x % length, (x // length) % length, (x // (length**2)) % length) for x in indices]
+
+#             # Create and merge all row combinations
+#             merged_slices = list([*full_vertex[x, y, :], *full_vertex[x, :, z], *full_vertex[:, y, z]] for x, y, z in indices)
         
-            # Append result to data_in
-            self.data_in_slices = torch.cat([self.data_in_slices, 
-                                        torch.tensor(merged_slices, dtype=torch.float32)], axis=0)
+#             # Append result to data_in
+#             self.data_in_slices = torch.cat([self.data_in_slices, 
+#                                         torch.tensor(merged_slices, dtype=torch.float32)], axis=0)
             
-            self.data_in_indices = torch.cat([self.data_in_indices, 
-                                        torch.tensor(indices, dtype=torch.float32)], axis=0)
+#             self.data_in_indices = torch.cat([self.data_in_indices, 
+#                                         torch.tensor(indices, dtype=torch.float32)], axis=0)
             
-            assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
+#             assert self.data_in_indices.shape[0] == self.data_in_slices.shape[0]
                 
-        axis = config.get("construction_axis", 3)
-        # Construct target data
-        match axis:
-            case 1: 
-                self.data_target = deepcopy(self.data_in_slices[:, 2*length:])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
-            case 2:
-                self.data_target = deepcopy(self.data_in_slices[:,length:2*length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
-            case 3:
-                self.data_target = deepcopy(self.data_in_slices[:, :length])
-                assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
-            case _:
-                raise NotImplementedError("Axis invalid")
+#         axis = config.get("construction_axis", 3)
+
+#         # Construct target data
+#         match axis:
+#             case 1: 
+#                 self.data_target = deepcopy(self.data_in_slices[:, 2*length:])
+#                 assert list(self.data_target[0]) == list(self.data_in_slices[0][2*length:])
+#             case 2:
+#                 self.data_target = deepcopy(self.data_in_slices[:,length:2*length])
+#                 assert list(self.data_target[0]) == list(self.data_in_slices[0][length:2*length])
+#             case 3:
+#                 self.data_target = deepcopy(self.data_in_slices[:, :length])
+#                 assert list(self.data_target[0]) == list(self.data_in_slices[0][:length])
+#             case _:
+#                 raise NotImplementedError("Axis invalid")
         
 
-    def __len__(self):
-        return self.data_in_slices.shape[0]
+#     def __len__(self):
+#         return self.data_in_slices.shape[0]
 
-    def __getitem__(self, idx):
-      if torch.is_tensor(idx):
-          idx = idx.tolist()
-      return self.data_in_indices[idx], self.data_in_slices[idx], self.data_target[idx]
+#     def __getitem__(self, idx):
+#       if torch.is_tensor(idx):
+#           idx = idx.tolist()
+#       return self.data_in_indices[idx], self.data_in_slices[idx], self.data_target[idx]
 
-    def get_vertex_from_filepath(self, path: str):
-        with h5py.File(path, 'r') as f:
-            for name, data in f["V"].items():
-                if name.startswith("step"):
-                    return data[()]
-'''        
+#     def get_vertex_from_filepath(self, path: str):
+#         with h5py.File(path, 'r') as f:
+#             for name, data in f["V"].items():
+#                 if name.startswith("step"):
+#                     return data[()]
+        
 class Dataset_ae_vertex_analysis(Dataset):
     def __init__(self, config):
         input_data = []
