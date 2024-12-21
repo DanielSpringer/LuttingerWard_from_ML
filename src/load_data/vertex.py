@@ -12,7 +12,7 @@ from src.config.vertex import *
 from . import FilebasedDataset
 
 
-class AutoEncoderVertexV2(FilebasedDataset):
+class AutoEncoderVertexDataset(FilebasedDataset):
     # matrix parameters
     n_freq = 24
     space_dim = 2
@@ -60,20 +60,34 @@ class AutoEncoderVertexV2(FilebasedDataset):
         assert list(self.data_target[0]) == list(self.data_in_slices[0][idx_range])
     
     def _sample(self, vertex: np.ndarray, config: VertexConfig) -> tuple[np.ndarray, np.ndarray]:
-        indices = random.sample(range(self.length**self.k_dim), config.sample_count_per_vertex)
-        indices = np.array([[(x // self.length**i) % self.length for i in range(self.k_dim)] for x in indices])
+        indices = random.sample(range(self.length**self.dim), config.sample_count_per_vertex)
+        indices = np.array([[(x // self.length**i) % self.length for i in range(self.dim)] for x in indices])
 
         # Create and merge all row combinations
         merged_slices = list(self.get_vector_from_vertex(vertex, x, y, z) for x, y, z in indices)
         return merged_slices, indices
     
     @staticmethod
-    def get_vector_from_vertex(vertex: np.ndarray, x: int, y: int, z: int) -> list[np.ndarray]:
+    def get_vector_from_vertex(vertex: np.ndarray, x: int, y: int, z: int) -> list[float]:
         return [
             *vertex[x, y, :], 
             *vertex[x, :, z], 
             *vertex[:, y, z],
         ]
+    
+    """
+    @classmethod
+    def get_vector_from_vertex(cls, vertex: np.ndarray, *coord: int) -> np.ndarray:
+        assert len(coord) == cls.dim, f'{cls.dim} coordinates required'
+        # NOTE: coords = [x, y, z]
+        vector = []
+        for i in reversed(range(cls.dim)):
+            c = [*coord]
+            c[i] = slice(None)
+            vector.extend(vertex[c])
+            # NOTE: extend vector with e.g. vertex[x, y, :] for axis 1 ... and vertex[:, y, z] for axis 3
+        return np.array(vector)
+    """
 
     def __len__(self):
         return self.data_in_slices.shape[0]
@@ -89,39 +103,60 @@ class AutoEncoderVertexV2(FilebasedDataset):
             for name, data in f["V"].items():
                 if name.startswith("step"):
                     return data[()]
+    
+    @classmethod
+    def to_6d_vertex(cls, vertex: np.ndarray) -> np.ndarray:
+        return vertex.reshape((cls.n_freq,) * cls.space_dim * cls.k_dim)
 
 
-class AutoEncoderVertex24x6(AutoEncoderVertexV2):
-    dim = AutoEncoderVertexV2.space_dim * AutoEncoderVertexV2.k_dim
-    target_length = AutoEncoderVertexV2.n_freq # * AutoEncoderVertexV2.space_dim
+class AutoEncoderVertex24x6Dataset(AutoEncoderVertexDataset):
+    dim = AutoEncoderVertexDataset.space_dim * AutoEncoderVertexDataset.k_dim
+    target_length = AutoEncoderVertexDataset.n_freq
 
     def _sample(self, vertex: np.ndarray, config: VertexConfig) -> tuple[np.ndarray, np.ndarray]:
-        # sample `sample_count_per_vertex` random indices of a 24^6 matrix
         indices = random.sample(range(self.n_freq**self.dim), config.sample_count_per_vertex)
         indices = np.array([[(x // self.n_freq**i) % self.n_freq for i in range(self.dim)] for x in indices])
 
-        # Retrive and merge all row combinations by the sampled indices
-        l_idcs = np.arange(self.length)
-        x_range, y_range = l_idcs % self.n_freq, l_idcs // self.n_freq
-        merged_slices = np.array([[
-            *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, y_range == k3y],   # k3y
-            *vertex[k1x + self.n_freq * k1y, k2x + self.n_freq * k2y, x_range == k3x],   # k3x
-            *vertex[k1x + self.n_freq * k1y, y_range == k2y, k3x + self.n_freq * k3y],   # k2y
-            *vertex[k1x + self.n_freq * k1y, x_range == k2x, k3x + self.n_freq * k3y],   # k2x
-            *vertex[y_range == k1y, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1y
-            *vertex[x_range == k1x, k2x + self.n_freq * k2y, k3x + self.n_freq * k3y],   # k1x
-        ] for k1x, k1y, k2x, k2y, k3x, k3y in indices])
+        # Create and merge all row combinations
+        merged_slices = list(self.get_vector_from_vertex(vertex, *coords) for coords in indices)
         return merged_slices, indices
     
     @staticmethod
-    def get_vector_from_vertex(vertex: np.ndarray, k1x: int, k1y: int, k2x: int, k2y: int, k3x: int, k3y: int, 
-                               x_range: np.ndarray, y_range: np.ndarray) -> list[np.ndarray]:
-        # ???
+    def get_vector_from_vertex(vertex: np.ndarray, k1x: int, k1y: int, k2x: int, k2y: int, 
+                               k3x: int, k3y: int) -> list[float]:
         return [
-            *vertex[k1y, k2y, y_range == k3y],   # k3y
-            *vertex[k1x, k2x, x_range == k3x],   # k3x
-            *vertex[k1y, y_range == k2y, k3y],   # k2y
-            *vertex[k1x, x_range == k2x, k3x],   # k2x
-            *vertex[y_range == k1y, k2y, k3y],   # k1y
-            *vertex[x_range == k1x, k2x, k3x],   # k1x
+            *vertex[k1x, k1y, k2x, k2y, k3x, :],   # k3y
+            *vertex[k1x, k1y, k2x, k2y, :, k3x],   # k3x
+            *vertex[k1x, k1y, k2x, :, k3x, k3y],   # k2x
+            *vertex[k1x, k1y, :, k2y, k3x, k3y],   # k2y
+            *vertex[k1x, :, k2y, k3x, k3y, k3y],   # k1y
+            *vertex[:, k1y, k2x, k3x, k3y, k3y],   # k1x
         ]
+    
+    @classmethod
+    def to_3d_vertex(cls, vertex: np.ndarray) -> np.ndarray:
+        return vertex.reshape((cls.length,) * cls.k_dim, order='F')
+
+
+def convert_3d_to_6d_vertex(data_dir: str) -> None:
+    import os
+    from pathlib import Path
+    
+    n_freq, dim = AutoEncoderVertexDataset.n_freq, 6
+
+    data_dir: Path = Path(data_dir)
+    new_dir = data_dir.parent / (data_dir.name + '_6d')
+    os.makedirs(new_dir, exist_ok=True)
+
+    file_paths = glob.glob(f"{data_dir}/*.h5")
+    for file_path in file_paths:
+        # load 3-dimensional vertex matrix
+        vertex3 = AutoEncoderVertexDataset.load_from_file(file_path)
+
+        # reshape to a 24^6 matrix
+        vertex6 = vertex3.reshape((n_freq,) * dim)
+        
+        # store 6-dimesnional vertex matrix to disk
+        file_name = Path(file_path).name
+        with h5py.File(new_dir / file_name, 'w') as file:
+            file.create_dataset("V/step0", data=vertex6, compression='lzf')

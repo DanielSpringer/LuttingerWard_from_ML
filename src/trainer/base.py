@@ -41,25 +41,20 @@ class BaseTrainer(Generic[T, S, R]):
         """
         Main class for training and using a model.
 
-        :param project_name: Some project name under which results are saved.
-        :type project_name: str
-        
-        :param config_name: Name of the config-file to load.
-        :type config_name: str
-
-        :param subconfig_name: Name of a sub-config in the config-file.  
-                               Required if the file contains multiple cofigurations. (defaults to None)
-        :type subconfig_name: str, optional
-        
-        :param test_ratio: Test split ratio between 0 and 1. (defaults to 0.2)
-        :type test_ratio: float, optional
-        
-        :param config_dir: Path to the directory of the config-files. (defaults to 'configs')
-        :type config_dir: str, optional
-        
-        :param config_kwargs: Additional kwargs that are applied when loading the config-file.  
-                              Allows to overwrite attributes from the config-file. (defaults to {})
-        :type config_kwargs: dict[str, Any], optional
+        Parameters
+        ----------
+        project_name : str
+            Some project name under which the results are saved.
+        config_name : str
+            Name of the config-file to load.
+        subconfig_name : str | None, optional
+            Name of a subsection in the config-file.\n
+            Required if the file contains multiple config-sections. (defaults to None)
+        config_dir : str, optional
+            Path to the directory of the config-files. (defaults to `'configs'`)
+        config_kwargs : dict[str, Any], optional
+            Additional kwargs that are applied to loading the config-file.\n
+            Allows to overwrite attributes from the config-file. (defaults to {})
         """
         conf_classname = repr(self.__orig_bases__[0]).split('[')[1].split(',')[0].split('.')[-1]
         conf_module = importlib.import_module('src.config')
@@ -76,56 +71,74 @@ class BaseTrainer(Generic[T, S, R]):
     
     @property
     def input_size(self) -> int|np.ndarray:
-        """Get the input size of the model. Overwrite for custom input size."""
+        """
+        Get the input size of the model. 
+        Overwrite when having a different dataset item structure.
+        """
         return self.dataset[0][0].shape[0]
 
     def train(self, train_mode: TrainerModes) -> None:
+        """
+        Main method to train the model.
+
+        Parameters
+        ----------
+        train_mode : TrainerModes
+            TrainerModes configure the lightning-trainer for different environments 
+            (e.g. cluster, local, jupyter).
+        """
         self.pre_train()
         self._train(train_mode)
         self.post_train()
     
-    def predict(self, new_data_path: str, save_path: str|None = None, model_path: str|None = None, 
+    def predict(self, new_data_path: str, save_path: str|None = None,
                 load_model: bool = False, **kwargs) -> np.ndarray:
         """
-        If already trained, uses the trained model, otherwise loads a model and performs a prediction on new data.
+        Performs a prediction using new data. If already trained, uses the trained model, 
+        otherwise loads a model from disk.
 
-        :param new_data_path: Path to new data to predict on.
-        :type new_data_path: str
-        
-        :param save_path: Save directory for the model run (`<model_name>/<version>/`). 
-                          The newest checkpoint in the directory is loaded. 
-                          If `None` `self.config.save_path` is used. (defaults to None)
-        :type save_path: str | None, optional
-        
-        :param model_path: Load a model from an absolute path or a path relative to project-subdirectory 
-                           (named after `self.project_name`). If `None` **save_path** is used. (defaults to None)
-        :type model_path: str | None, optional
-        
-        :param load_model: Force load a model. (defaults to False)
-        :type load_model: bool, optional
+        Parameters
+        ----------
+        new_data_path : str
+            Path to file containing the new data to predict on.
+        save_path : str | None, optional
+            Either path to a model checkpoint in the saves-folder 
+            (like `/<project_name>/<version>/checkpoints/<chjeckpoint>.ckpt`) 
+            or to a saves-folder containing the run config (ending as `/<project_name>/<version>/`).\n
+            In the latter case, the newest checkpoint in the directory is loaded.\n
+            Path can either be absolute or relative to `/<project_name>/`.\n
+            If `None` `self.config.save_path` is used. (defaults to None)
+        load_model : bool, optional
+            Force load a model (loads a model even if a model is already loaded). (defaults to False)
 
-        :param kwargs: Additional keyword arguments handed to the `_predict` method.
-        :type kwargs: dict[str, Any]
-        
-        :return: Prediction as numpy array.
-        :rtype: np.ndarray
+        Returns
+        -------
+        np.ndarray
+            Prediction as numpy array.
         """
         new_data = self.dataset.load_from_file(new_data_path)
-        if self.wrapper is None or load_model or save_path or model_path:
-            self.load_model(save_path, model_path)
+        if self.wrapper is None or load_model or save_path:
+            self.load_model(save_path)
         self.wrapper.model.eval()
         return self._predict(new_data, new_data_path, **kwargs)
 
     def pre_train(self) -> None:
-        """Overwrite to perform operations before the main training"""
+        """
+        Overwrite to perform operations before starting the training.
+        """
         pass
 
     def post_train(self) -> None:
-        """Overwrite to perform operations after the main training"""
+        """
+        Overwrite to perform operations after finishing training.
+        """
         pass
 
     def create_data_loader(self) -> tuple[DataLoader, DataLoader]:
-        """Create DataLoader. Overwrite for custom data loading."""
+        """
+        Create DataLoader.\n
+        Overwrite for custom data loading.
+        """
         train_set, validation_set = random_split(self.dataset, [1 - self.config.test_ratio, self.config.test_ratio], 
                                                  generator=torch.Generator().manual_seed(42))
         train_dataloader = self.data_loader(train_set, batch_size=self.config.batch_size, shuffle=True, 
@@ -135,64 +148,123 @@ class BaseTrainer(Generic[T, S, R]):
         return train_dataloader, validation_dataloader
 
     def set_logging(self) -> TensorBoardLogger:
-        """Set TensorBoardLogger and ModelCheckpoint. Overwrite for custom logging."""
+        """
+        Set TensorBoardLogger and ModelCheckpoint.\n
+        Overwrite for custom logging.
+        """
         save_path = self.save_prefix + str(datetime.datetime.now().date())
         logger = TensorBoardLogger(self.get_full_save_path(''), name=save_path)
         self.config.save_path = logger.log_dir
         return logger
 
     def _predict(self, new_data: np.ndarray, new_data_path: str, **kwargs) -> np.ndarray:
-        """Overwrite for customized prediction."""
+        """
+        Perform a prediction using new data.\n
+        Overwrite for customized prediction.
+
+        Parameters
+        ----------
+        new_data : np.ndarray
+            New data to predict on.
+        new_data_path : str
+            Path to file containing the new data to predict on.
+        **kwargs :
+            Additional keyword arguments received from the main `predict`-method, 
+            that can be used when overwriting this method.
+
+        Returns
+        -------
+        np.ndarray
+            Prediction as numpy array.
+        """
         input = torch.tensor(new_data, dtype=torch.float32).to('cpu')
         pred = self.wrapper(input).detach().numpy()
-        fp = self.get_full_save_path() / f'{Path(new_data_path).stem}_prediction.npy'
+        p = self.get_full_save_path() / 'predictions'
+        p.mkdir(exist_ok=True)
+        fp = p / f'{Path(new_data_path).stem}.npy'
         np.save(fp, pred)
         return pred
     
     def get_full_save_path(self, save_path: str|None = None) -> Path:
+        """
+        Return the absolute save-path from a path relative to `<saves_dir>/<project_name>/`.
+
+        Parameters
+        ----------
+        save_path : str | None, optional
+            Path relative to `<saves_dir>/<project_name>/`.
+            If `None` `self.config.save_path` is used. (defaults to None)
+
+        Returns
+        -------
+        Path
+            The absolute save-path.
+        """
         if save_path is None:
             save_path = self.config.save_path
         return self.config.base_dir / self.config.save_dir / self.project_name / save_path
     
     @property
     def save_prefix(self) -> str:
+        """
+        Get the name of the saves-subfolder for this training-run.\n
+        Overwrite for custom naming.
+        """
         return f"save_{self.subconfig_name}_BS{self.config.batch_size}_"
 
     def load_config(self, save_path: str) -> None:
+        """
+        Sets the used Config from a config-JSON file.
+
+        Parameters
+        ----------
+        save_path : str
+            File-path of the config-JSON.
+        """
         self.config = self.config_cls.from_json('config.json', directory=save_path, save_path=save_path)
 
-    def load_model(self, save_path: str|None = None, model_path: str|None = None) -> None:
+    def load_model(self, save_path: str|None = None) -> None:
         """
         Loads a model and corresponding config into the trainer. 
-        Loads the model either from a given checkpoint filepath or from the newest checkpoint in a given directory.
+        Loads the model either from a given checkpoint filepath 
+        or from the newest checkpoint in a given directory.
 
-        :param save_path: Save directory for the model run (`<model_name>/<version>/`). 
-                          The newest checkpoint in the directory is loaded. 
-                          If `None` `self.config.save_path` is used. (defaults to None)
-        :type save_path: str | None, optional
-        
-        :param model_path: Load a model from an absolute path or a path relative to project-subdirectory 
-                           (named after `self.project_name`). If `None` **save_path** is used. (defaults to None)
-        :type model_path: str | None, optional
+        Parameters
+        ----------
+        save_path : str | None, optional
+            Either path to a model checkpoint in the saves-folder 
+            (like `/<project_name>/<version>/checkpoints/<chjeckpoint>.ckpt`) 
+            or to a saves-folder containing the run config (ending as `/<project_name>/<version>/`).\n
+            In the latter case, the newest checkpoint in the directory is loaded.\n
+            Path can either be absolute or relative to `/<project_name>/`.\n
+            If `None` `self.config.save_path` is used. (defaults to None)
         """
-        assert model_path or save_path or self.config.save_path, "No save_path found in the config-file, please provide a save_path or model_path."
-        if model_path and Path(model_path).is_absolute():
-            ckpt_path = model_path
-        elif model_path:
-            ckpt_path = self.get_full_save_path(model_path)
-        else:
-            save_path = save_path or self.config.save_path
-            ckpt_path = self.get_full_save_path(save_path)
-            ckpt_files = glob.glob((ckpt_path / '**/*.ckpt').as_posix(), recursive=True)
-            ckpt_path = max(ckpt_files, key=os.path.getctime)
-        print(f" >>> Load checkpoint from '{ckpt_path}'")
-        self.load_config(Path(ckpt_path).parent.parent.as_posix())
+        assert save_path or self.config.save_path, ("No save_path found in the config-file, "
+                                                    "please provide a save_path.")
+        save_path: Path = Path(save_path)
+        if not save_path.is_absolute():
+            save_path = self.get_full_save_path(save_path or self.config.save_path)
+        if not save_path.suffix == '.ckpt':
+            ckpt_files = glob.glob((save_path / '**/*.ckpt').as_posix(), recursive=True)
+            save_path = max(ckpt_files, key=os.path.getctime)
+        print(f" >>> Load checkpoint from '{save_path}'")
+        self.load_config(Path(save_path).parent.parent.as_posix())
         device = self.get_device_from_accelerator(self.config.device_type)
-        checkpoint = torch.load(ckpt_path, map_location=device, weights_only=True)
+        checkpoint = torch.load(save_path, map_location=device, weights_only=True)
         self.wrapper = self.config.model_wrapper(self.config, self.input_size)
         self.wrapper.load_state_dict(checkpoint['state_dict'])
 
     def _train(self, train_mode: TrainerModes) -> None:
+        """
+        Core method for running the training.\n
+        Overwrite for custom training process.
+
+        Parameters
+        ----------
+        train_mode : TrainerModes
+            TrainerModes configure the lightning-trainer for different environments 
+            (e.g. cluster, local, jupyter).
+        """
         ''' Dataloading '''
         train_dataloader, validation_dataloader = self.create_data_loader()
 
@@ -232,19 +304,79 @@ class BaseTrainer(Generic[T, S, R]):
         with open(self.get_full_save_path() / 'config.json', 'w') as outfile:
             outfile.write(json_object)
     
-    def _load_npy(self, npy_type: str, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
+    def _load_npy(self, npy_type: str, save_path: str|None = None, 
+                  file_name: str|None = None) -> np.ndarray|None:
+        """
+        Load result arrays stored in the numpy format (`.npy`).
+
+        Parameters
+        ----------
+        npy_type : str
+            Name of subfolder in the model-save-folder where the numpy-files are stored.
+        save_path : str | None, optional
+            Path to the model-save-folder (like `/<project_name>/<version>/`).\n
+            Required if no model loaded.\n
+            If `None` `self.config.save_path` is used. (defaults to None)
+        file_name : str | None, optional
+            Name of the `.npy`-file.\n
+            If `None` the newest file in the folder is loaded. (defaults to None)
+
+        Returns
+        -------
+        np.ndarray|None
+            The loaded numpy array or `None` if the file does not exist.
+        """
         if save_path:
             self.load_config(self.get_full_save_path(save_path))
-        if not npy_path:
-            npy_path = max(self.get_full_save_path().glob(f'*_{npy_type}.npy'), key=os.path.getctime)
+        p = self.get_full_save_path() / npy_type
+        if not file_name:
+            npy_path = max(p.glob(f'*.npy'), key=os.path.getctime)
+        else:
+            npy_path = p / file_name
         if os.path.exists(npy_path):
             return np.load(npy_path)
     
-    def load_prediction(self, save_path: str|None = None, npy_path: str|None = None) -> np.ndarray|None:
-        return self._load_npy('prediction', save_path, npy_path)
+    def load_prediction(self, save_path: str|None = None, file_name: str|None = None) -> np.ndarray|None:
+        """
+        Load a previous prediction stored in the numpy format (`.npy`).
+
+        Parameters
+        ----------
+        save_path : str | None, optional
+            Path to the model-save-folder (like `/<project_name>/<version>/`).\n
+            Required if no model loaded.\n
+            If `None` `self.config.save_path` is used. (defaults to None)
+        file_name : str | None, optional
+            Name of the `.npy`-file.\n
+            If `None` the newest file in the folder is loaded. (defaults to None)
+
+        Returns
+        -------
+        np.ndarray|None
+            The loaded numpy array or `None` if the file does not exist.
+        """
+        return self._load_npy('predictions', save_path, file_name)
     
     @staticmethod
     def get_device_from_accelerator(accelerator: str) -> str:
+        """
+        Maps lightning accelerators to pytorch device-types.
+
+        Parameters
+        ----------
+        accelerator : str
+            Lightning accelerator type name.
+
+        Returns
+        -------
+        str
+            Pytorch device type name.
+
+        Raises
+        ------
+        ValueError
+            If the accelerator is not known.
+        """
         mapping = {
             "cpu": "cpu",
             "gpu": "cuda",

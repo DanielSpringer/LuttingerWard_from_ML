@@ -1,11 +1,11 @@
 {
-    "AUTO_ENCODER_VERTEX_V2": {
+    "AUTO_ENCODER_VERTEX": {
         "MODEL_NAME": "AutoEncoderVertex",
         "model_wrapper": "VertexWrapper",
         "resume": false,
 
         "path_train": "../frgs",
-        "dataset": "AutoEncoderVertexV2",
+        "dataset": "AutoEncoderVertexDataset",
 
         "batch_size": 20,
         "learning_rate": 1e-4,
@@ -19,7 +19,7 @@
         
         "construction_axis": 3,
         "sample_count_per_vertex": 2000,
-        "positional_encoding": true
+        "positional_encoding": false
     },
     "SLURM_CONFIG": {
         "project_name": "vertex_v2", 
@@ -45,22 +45,22 @@
         "model_wrapper": "VertexWrapper",
         "resume": false,
 
-        "path_train": "../frgs",
-        "dataset": "AutoEncoderVertex24x6",
+        "path_train": "../frgs_6d",
+        "dataset": "AutoEncoderVertex24x6Dataset",
 
         "batch_size": 20,
         "learning_rate": 1e-4,
         "weight_decay": 1e-5,
         "epochs": 100,
         "hidden_dims": [128, 64, 32],
-        "out_dim": 48,
+        "out_dim": 24,
         "device_type": "gpu",
         "devices": 1,
         "num_nodes": 1,
         
         "construction_axis": 3,
         "sample_count_per_vertex": 2000,
-        "positional_encoding": true
+        "positional_encoding": false
     },
     "SLURM_CONFIG_24X6": {
         "project_name": "vertex_v2", 

@@ -4,7 +4,7 @@ import pydoc
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Generic, Type, TypeVar, TYPE_CHECKING
+from typing import Any, Generic, Literal, Type, TypeVar, TYPE_CHECKING
 
 from lightning.pytorch.callbacks.callback import Callback
 from torch.nn import Module
@@ -44,7 +44,7 @@ class Config(Generic[R, S, T]):
     learning_rate: float = 0.0001
     weight_decay: float = 1e-05
     epochs: int = 1000
-    device_type: str = 'gpu'
+    device_type: Literal['cpu', 'gpu', 'mps', 'xla', 'hpu'] = 'gpu'
     devices: int = 1          # >= <# devices (CPUs or GPUs) on partition> * `num_nodes`
     num_nodes: int = 1
 
@@ -76,20 +76,27 @@ class Config(Generic[R, S, T]):
     
     @classmethod
     def from_json(cls, config_name: str, subconfig_name: str|None = None, 
-                  directory: str = 'configs', **kwargs):
+                  directory: str = 'configs', **kwargs) -> 'Config':
         """
         Creates a class containing all training parameters from a config-JSON. 
         Add kwargs to add attributes or overwrite attributes from the config-JSON.
 
-        :param config_name: File name of the config-JSON.
-        :type config_name: str
+        Parameters
+        ----------
+        config_name : str
+            File name of the config-JSON.
+        subconfig_name : str | None, optional
+            Name of a sub-config in the config-file.\n
+            Required if the file contains multiple cofigurations. (defaults to None)
+        directory : str, optional
+            Path to the directory of the config-file. (defaults to 'configs')
+        **kwargs :
+            Adds or overwrites attributes taken from the config-JSON.
 
-        :param subconfig_name: Name of a sub-config in the config-file.  
-                               Required if the file contains multiple cofigurations. (defaults to None)
-        :type subconfig_name: str | None, optional
-        
-        :param directory: Path to the directory of the config-file. (defaults to 'configs')
-        :type directory: str, optional
+        Returns
+        -------
+        Config
+            A Config-instance with parameters set according to the JSON-file.
         """
         directory = Path(cls._base_dir, directory)
         with open(directory / config_name) as f:
@@ -210,28 +217,35 @@ class Config(Generic[R, S, T]):
         """
         Import a class-object defined by its fully qualified name.
 
-        :param obj_fqn: The fully qualified name of the class.
-        :type obj_fqn: str
-        
-        :return: The class.
-        :rtype: type
+        Parameters
+        ----------
+        obj_fqn : str
+            The fully qualified name of the class.
+
+        Returns
+        -------
+        type
+            The class.
         """
         return pydoc.locate(obj_fqn)
     
     @staticmethod
     def resolve_objectname(obj_name: str, module_name: str) -> type:
         """
-        Import a class object defined by the class-name and its fully qualified module-name
+        Import a class object defined by the class-name and its fully qualified module-name.
 
-        :param obj_name: The name of the class.
-        :type obj_name: str
-        
-        :param module_name: The fully qualified module-name where the class is contained.
-        :type module_name: str
-        
-        :return: The class.
-        :rtype: type
-        """        
+        Parameters
+        ----------
+        obj_name : str
+            The name of the class.
+        module_name : str
+            The name of the class.
+
+        Returns
+        -------
+        type
+            The class.
+        """
         module = importlib.import_module(module_name)
         return getattr(module, obj_name)
     

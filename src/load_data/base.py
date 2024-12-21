@@ -10,6 +10,16 @@ class FilebasedDataset(Dataset, ABC):
     @abstractmethod
     def __init__(self, config: Config):
         """
+        Base-class for datasets. Based on the `torch.utils.data.Dataset`-class 
+        but includes method to load data from disk.
+
+        Parameters
+        ----------
+        config : Config
+            A Config instance.
+        """        
+
+        """
         :param config: A Config instance.
         :type config: Config
         
@@ -26,4 +36,18 @@ class FilebasedDataset(Dataset, ABC):
     @staticmethod
     @abstractmethod
     def load_from_file(path: str) -> torch.Tensor:
+        """
+        Load data from a given file-path.
+        Overwrite this method in a dervied class to use it.
+
+        Parameters
+        ----------
+        path : str
+            File-path to load data from.
+
+        Returns
+        -------
+        torch.Tensor
+            Data as `torch.Tensor`.
+        """
         pass

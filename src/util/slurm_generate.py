@@ -1,9 +1,12 @@
+import importlib
 import json
 import sys
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+from src.config import Config
 
 
 @dataclass
@@ -11,15 +14,31 @@ class SlurmOptions:
     n: int = 1
     mail_type: str = 'BEGIN'
     mail_user: str = '<email@address.at>'
-    partition: str = 'zen3_0512_a100x2'
+    partition: str = 'zen3_0512_a100x2'    # see available resources on VSC via `sqos`-command
     qos: str = 'zen3_0512_a100x2'
-    ntasks_per_node: int = 128
+    ntasks_per_node: int = 128             # max. <#devices of partition> (CPUs or GPUs)
     nodes: int = 1
-    time: str = '01:00:00'
+    time: str = '01:00:00'                 # must be <= '00:10:00' for '_devel' nodes
+    device_type: Literal['cpu', 'gpu', 'mps', 'xla', 'hpu'] = 'gpu'   # must be set according to the `partition`
+
+    def __post_init__(self) -> None:
+        self.partition = self.qos.removesuffix('_devel')
+    
+    def set_from_config(self, config: Config) -> None:
+        self.nodes = config.num_nodes
+        self.ntasks_per_node = config.devices // self.nodes
 
 
-def create_train_script(project_name: str, base_dir: str|Path, trainer: str|None = None, 
-                        trainer_kwargs: dict[str, Any]|None = None) -> None:
+def create_train_script(project_name: str, base_dir: str|Path, device_type: Literal['cpu', 'gpu'],
+                        trainer: str|None = None, trainer_kwargs: dict[str, Any]|None = None) -> None:
+    def create_args_string(dic: dict[str, Any]) -> str:
+        return ', '.join([f'{k}={repr(v)}' for k, v in dic.items()])
+    
+    etxra_kwargs = trainer_kwargs.pop('config_kwargs', {})
+    trainer_kwargs['device_type'] = device_type
+    args_string = create_args_string(trainer_kwargs)
+    args_string += ', ' + create_args_string(etxra_kwargs)
+
     s = f"""import sys, os
 sys.path.append(os.getcwd())
 
@@ -27,8 +46,12 @@ from src.trainer import TrainerModes, {trainer}
 
 
 def train():
-    trainer = {trainer}('{project_name}', '{trainer_kwargs['config_name']}', '{trainer_kwargs['subconfig_name']}')
+    trainer = {trainer}('{project_name}', {args_string})
     trainer.train(train_mode=TrainerModes.SLURM)
+
+
+if __name__ == '__main__':
+    train()
 """
     fdir = Path(base_dir, 'train_scripts', project_name)
     fdir.mkdir(parents=True, exist_ok=True)
@@ -42,44 +65,42 @@ def create(project_name: str, script_name: str, pyenv_dir: str, pyenv_name: str,
     """
     Create a slurm script and optionally create a python train-script.
 
-    :param project_name: Name of the project.
-    :type project_name: str
-    
-    :param script_name: Name of the generated slurm-file.
-    :type script_name: str
-    
-    :param venv_dir: Path to the directory of the python environment. 
-                     Given directory should contain the `/bin/` folder.
-    :type venv_dir: str
-    
-    :param venv_name: Name of the python environment.
-    :type venv_name: str
-    
-    :param path_to_repo: Path to the LuttingerWard_from_ML repository. 
-                         Given directory should contain the `/LuttingerWard_from_ML/` folder.
-    :type path_to_repo: str
-
-    :param slurm_options: SlurmOptions instance containing the SBATCH options. (defaults to None)
-    :type slurm_options: SlurmOptions | None, optional
-    
-    :param train_script_name: Name of the train-script in the `train_scripts` folder to use.
-                              If None, generate a train-script. (defaults to None)
-    :type train_script_name: str | None, optional
-    
-    :param trainer: If generating a train-script, name of trainer-class to use in the train-script.
-                    Must be provided if no train_script_name is given. (defaults to None)
-    :type trainer: str | None, optional
-    
-    :param trainer_kwargs: If generating a train-script, kwargs for instantiating the trainer-class in the train-script. 
-                           Must be provided if no train_script_name is given. (defaults to None)
-    :type trainer_kwargs: dict[str, Any] | None, optional
+    Parameters
+    ----------
+    project_name : str
+        A name for the project.
+    script_name : str
+        A name for the generated slurm-file.
+    pyenv_dir : str
+        Path to the directory of the python environment.\n
+        Given directory should contain the `/bin/` folder.
+    pyenv_name : str
+        Name of the python environment.
+    path_to_repo : str
+        Path to the LuttingerWard_from_ML repository.\n
+        Given directory should contain the `/PhysML/` folder.
+    slurm_options : SlurmOptions, optional
+        `SlurmOptions`-instance containing the SBATCH options.
+    train_script_name : str | None, optional
+        Name of the train-script in the `train_scripts` folder to use.\n
+        If None, generate a train-script. (defaults to None)
+    trainer : str | None, optional
+        Name of trainer-class to use in the train-script.\n
+        Only required if `train_script_name` is not given. (defaults to None)
+    trainer_kwargs : dict[str, Any] | None, optional
+        Kwargs for instantiating the trainer-class in the train-script.\n
+        Only required if `train_script_name` is not given. (defaults to None)
     """
+    config_cls: type[Config] = getattr(importlib.import_module('src.trainer'), trainer).config_cls
+    config = config_cls.from_json(trainer_kwargs['config_name'], trainer_kwargs['subconfig_name'], 
+                                  trainer_kwargs['config_dir'], **trainer_kwargs['config_kwargs'])
+    slurm_options.set_from_config(config)
     venv_files = Path(pyenv_dir, '*').as_posix()
     source_path = Path(pyenv_dir, 'bin/activate').as_posix()
     current_base_dir = Path(__file__).parent.parent.parent
     
     if not train_script_name:
-        create_train_script(project_name, current_base_dir, trainer, trainer_kwargs)
+        create_train_script(project_name, current_base_dir, slurm_options.device_type, trainer, trainer_kwargs)
         train_script_name = f'train_{project_name}.py'
     train_script_path = Path(path_to_repo, 'LuttingerWard_from_ML', 'train_scripts', project_name, 
                              train_script_name).as_posix()
@@ -111,17 +132,22 @@ srun python {train_script_path}
 
 def create_from_config(config_file: str|Path, slurm_config_name: str = 'SLURM_CONFIG') -> None:
     """
-    Reads the section with the key `slurm_config_name` from a config-JSON and runs `create` from the settings contained.
+    Reads the section with the key-name given by `slurm_config_name` from a config-JSON 
+    and creates a SLURM-script and train-script from the settings contained.
 
-    :param config_file: Path to config-JSON
-    :type config_file: str | Path
-
-    :param slurm_config_name: Name of the section in the config-JSON to read the settings from. (defaults to 'SLURM_CONFIG')
-    :type slurm_config_name: str, optional
+    Parameters
+    ----------
+    config_file : str | Path
+        Path to config-JSON.
+    slurm_config_name : str, optional
+        Name of the section in the config-JSON to read the settings from.\n
+        (defaults to `'SLURM_CONFIG'`)
     """
     with open(config_file) as f:
         config: dict[str, Any] = json.load(f)
     config = config[slurm_config_name]
+    if 'slurm_options' in config:
+        config['slurm_options'] = SlurmOptions(**config['slurm_options'])
     create(**config)
 
 
